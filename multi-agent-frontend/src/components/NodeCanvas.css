@@ -1,0 +1,200 @@
+.node-canvas {
+  height: 100%;
+  width: 100%;
+}
+
+.node-canvas .react-flow {
+  background: #fafafa;
+}
+
+/* 自定义节点样式 */
+.custom-node {
+  transition: all 0.3s ease;
+  cursor: grab;
+}
+
+.custom-node:active {
+  cursor: grabbing;
+}
+
+.custom-node:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15) !important;
+}
+
+.custom-node.selected {
+  animation: selectedPulse 2s infinite;
+}
+
+/* 特殊节点（输入/输出）样式 */
+.custom-node.special-node {
+  position: relative;
+}
+
+.custom-node.special-node::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, #52c41a, #73d13d);
+  border-radius: 8px;
+  z-index: -1;
+  opacity: 0.1;
+}
+
+.custom-node.special-node:hover::before {
+  opacity: 0.2;
+}
+
+@keyframes selectedPulse {
+  0% {
+    box-shadow: 0 4px 12px rgba(22, 119, 255, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(22, 119, 255, 0.5);
+  }
+  100% {
+    box-shadow: 0 4px 12px rgba(22, 119, 255, 0.3);
+  }
+}
+
+.node-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.node-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: #262626;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.node-description {
+  font-size: 12px;
+  color: #666;
+  line-height: 1.4;
+  margin-bottom: 8px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.node-config {
+  margin-top: 8px;
+  font-size: 11px;
+}
+
+.config-label {
+  font-weight: 600;
+  color: #8c8c8c;
+  margin-bottom: 4px;
+}
+
+.config-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.config-key {
+  color: #595959;
+  font-weight: 500;
+}
+
+.config-value {
+  color: #1677ff;
+  font-weight: 400;
+  max-width: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.config-more {
+  color: #8c8c8c;
+  font-style: italic;
+  text-align: center;
+}
+
+/* 画布信息面板 */
+.canvas-info {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 8px;
+  padding: 12px 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.canvas-info > div {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.canvas-info > div:last-child {
+  margin-bottom: 0;
+}
+
+/* React Flow 控件样式优化 */
+.react-flow__controls {
+  button {
+    background: #ffffff;
+    border: 1px solid #d9d9d9;
+    color: #666;
+    transition: all 0.3s ease;
+  }
+  
+  button:hover {
+    background: #f0f8ff;
+    border-color: #1677ff;
+    color: #1677ff;
+  }
+}
+
+.react-flow__minimap {
+  background: #ffffff;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* 边的样式 */
+.react-flow__edge-path {
+  stroke-width: 3;
+  transition: all 0.3s ease;
+}
+
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke-width: 4;
+  filter: drop-shadow(0 0 6px rgba(22, 119, 255, 0.4));
+}
+
+.react-flow__edge-text {
+  font-size: 12px;
+  font-weight: bold;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 3px 8px;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(22, 119, 255, 0.2);
+}
+
+/* 箭头标记样式 */
+.react-flow__arrowhead {
+  stroke-width: 2;
+}
+
+/* 选中的边 */
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke-width: 4;
+  filter: drop-shadow(0 0 8px rgba(22, 119, 255, 0.6));
+}

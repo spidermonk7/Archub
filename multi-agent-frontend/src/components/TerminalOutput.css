@@ -1,0 +1,184 @@
+.terminal-output {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #1e1e1e;
+  border-radius: 8px;
+  overflow: hidden;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+.terminal-header {
+  background: #2d2d2d;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #3d3d3d;
+}
+
+.terminal-controls {
+  display: flex;
+  gap: 6px;
+}
+
+.terminal-button {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.terminal-button.red {
+  background: #ff5f56;
+}
+
+.terminal-button.yellow {
+  background: #ffbd2e;
+}
+
+.terminal-button.green {
+  background: #27ca3f;
+}
+
+.terminal-title {
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.terminal-content {
+  flex: 1;
+  padding: 12px;
+  overflow-y: auto;
+  background: #1e1e1e;
+  color: #ffffff;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.terminal-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.terminal-content::-webkit-scrollbar-track {
+  background: #2d2d2d;
+}
+
+.terminal-content::-webkit-scrollbar-thumb {
+  background: #4d4d4d;
+  border-radius: 3px;
+}
+
+.terminal-content::-webkit-scrollbar-thumb:hover {
+  background: #5d5d5d;
+}
+
+.terminal-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #8c8c8c;
+  font-style: italic;
+}
+
+.terminal-line {
+  display: flex;
+  margin-bottom: 2px;
+  align-items: flex-start;
+  word-wrap: break-word;
+}
+
+.terminal-timestamp {
+  color: #8c8c8c;
+  margin-right: 8px;
+  flex-shrink: 0;
+  font-size: 10px;
+}
+
+.terminal-text {
+  flex: 1;
+  word-break: break-word;
+}
+
+.terminal-text.error {
+  color: #ff4d4f;
+  font-weight: 500;
+}
+
+.terminal-text.warning {
+  color: #faad14;
+  font-weight: 500;
+}
+
+.terminal-text.info {
+  color: #1677ff;
+}
+
+.terminal-text.debug {
+  color: #8c8c8c;
+}
+
+.terminal-text.success {
+  color: #52c41a;
+  font-weight: 500;
+}
+
+.terminal-cursor {
+  display: flex;
+  align-items: center;
+  color: #52c41a;
+}
+
+.blinking-cursor {
+  animation: blink 1s infinite;
+  font-weight: bold;
+}
+
+@keyframes blink {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0;
+  }
+}
+
+/* 终端输出的特殊效果 */
+.terminal-line:hover {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0 4px;
+  margin: 0 -4px 2px -4px;
+  border-radius: 4px;
+}
+
+/* 日志级别指示器 */
+.terminal-text::before {
+  content: '';
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.terminal-text.error::before {
+  background: #ff4d4f;
+}
+
+.terminal-text.warning::before {
+  background: #faad14;
+}
+
+.terminal-text.info::before {
+  background: #1677ff;
+}
+
+.terminal-text.success::before {
+  background: #52c41a;
+}
+
+.terminal-text.debug::before {
+  background: #8c8c8c;
+}

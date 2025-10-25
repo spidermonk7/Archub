@@ -1,0 +1,204 @@
+.homepage {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.homepage-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.homepage-container {
+  max-width: 1000px;
+  width: 100%;
+  text-align: center;
+}
+
+.homepage-header {
+  margin-bottom: 60px;
+  color: white;
+}
+
+.homepage-icon {
+  font-size: 64px;
+  color: #fff;
+  margin-bottom: 20px;
+  display: block;
+}
+
+.homepage-header h1 {
+  color: white !important;
+  font-size: 48px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.homepage-subtitle {
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.9) !important;
+  margin-bottom: 0;
+}
+
+.homepage-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  margin-bottom: 60px;
+}
+
+.option-card {
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  border: none;
+}
+
+.option-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
+}
+
+.card-cover {
+  height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.build-cover {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.explore-cover {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.python-cover {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.card-icon {
+  font-size: 48px;
+  color: white;
+  z-index: 2;
+}
+
+.card-cover::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  50% {
+    transform: translate(-50%, -50%) rotate(180deg);
+  }
+}
+
+.option-card .ant-card-meta-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #262626;
+  margin-bottom: 12px;
+}
+
+.option-card .ant-card-meta-description {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.6;
+}
+
+.option-card .ant-card-body {
+  padding: 24px;
+}
+
+.option-card .ant-card-actions {
+  border-top: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+.card-button {
+  height: 40px;
+  font-weight: 600;
+  border-radius: 8px;
+  margin: 8px;
+}
+
+.build-card .card-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+}
+
+.explore-card .card-button {
+  color: #f5576c;
+  border-color: #f5576c;
+}
+
+.explore-card .card-button:hover {
+  background: #f5576c;
+  color: white;
+  border-color: #f5576c;
+}
+
+.python-card .card-button {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  border: none;
+}
+
+.homepage-footer {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.homepage-footer .ant-typography {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .homepage-cards {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .homepage-header h1 {
+    font-size: 36px;
+  }
+  
+  .homepage-icon {
+    font-size: 48px;
+  }
+  
+  .option-card {
+    margin: 0 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .homepage-container {
+    padding: 0 10px;
+  }
+  
+  .card-cover {
+    height: 120px;
+  }
+  
+  .card-icon {
+    font-size: 36px;
+  }
+}

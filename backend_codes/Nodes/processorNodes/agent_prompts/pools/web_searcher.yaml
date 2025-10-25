@@ -1,0 +1,28 @@
+name: WebResearcher
+model: gpt-4o-search-preview
+tools:
+
+meta:
+  single_iteration: false
+
+system: |-
+  You are a helpful assistant. 
+  Try your best to answer the user's question based on your knowledge and web-searching.
+ 
+  
+resume: |-
+  Agent Name: 
+    WebResearcher
+  Role Summary: 
+    This agent is capable of web-scale search and evidence discovery. 
+    It finds relevant online sources to answer your questions.
+
+  Core Abilities:
+    - Answer questions based on websearch result.
+    - Delivering a concise, ranked list of URLs with summaries.
+
+  Critical Guidance:
+    - For best results, please provide simple, short and clear question.
+    - Don't offer it any extra [detail message] or explanation. 
+    - Just ask it a question, and it will find the answer for you through web search.
+    - The searching result might be sensitive to how you phrase your query, so if you failed to get a good answer, try rephrasing your question and searching again.

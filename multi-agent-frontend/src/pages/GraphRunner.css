@@ -1,0 +1,82 @@
+.graph-runner {
+  height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.graph-runner .header {
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 0 24px;
+  height: 64px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.graph-runner .header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.graph-runner .header-content h1 {
+  margin: 0;
+  color: #764ba2;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.graph-runner .back-button {
+  color: #666;
+  font-weight: 500;
+}
+
+.graph-runner .back-button:hover {
+  color: #1677ff;
+  background: #f0f8ff;
+}
+
+.graph-runner .controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.graph-runner .main-content {
+  padding: 0;
+  background: #fafafa;
+  overflow: hidden;
+}
+
+.graph-runner .terminal-sider {
+  background: #ffffff;
+  border-left: 1px solid #f0f0f0;
+}
+
+.graph-runner .terminal-sider .ant-card {
+  height: 100%;
+  border: none;
+  border-radius: 0;
+}
+
+.graph-runner .terminal-sider .ant-card-body {
+  padding: 12px;
+  height: calc(100% - 57px);
+  overflow: hidden;
+}
+
+/* 运行按钮特殊样式 */
+.graph-runner .ant-btn-primary {
+  background: linear-gradient(135deg, #52c41a 0%, #95de64 100%);
+  border: none;
+  height: 44px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.graph-runner .ant-btn-primary:hover {
+  background: linear-gradient(135deg, #389e0d 0%, #52c41a 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(82, 196, 26, 0.3);
+}

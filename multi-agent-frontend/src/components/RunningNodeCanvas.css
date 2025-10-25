@@ -1,0 +1,156 @@
+.running-node-canvas {
+  height: 100%;
+  width: 100%;
+}
+
+.running-node-canvas .react-flow {
+  background: #fafafa;
+  transition: all 0.3s ease;
+}
+
+/* 运行中的自定义节点样式 */
+.running-custom-node {
+  transition: all 0.3s ease;
+}
+
+.running-custom-node.active {
+  animation: nodeActive 2s infinite;
+}
+
+.running-custom-node.system-running {
+  border-color: #52c41a !important;
+}
+
+@keyframes nodeActive {
+  0% {
+    box-shadow: 0 0 15px rgba(82, 196, 26, 0.5);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(82, 196, 26, 0.8);
+    transform: scale(1.02);
+  }
+  100% {
+    box-shadow: 0 0 15px rgba(82, 196, 26, 0.5);
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.running-node-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.activity-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 4px 8px;
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #52c41a;
+  font-weight: 500;
+}
+
+.activity-dot {
+  width: 6px;
+  height: 6px;
+  background: #52c41a;
+  border-radius: 50%;
+  animation: activityDot 1.5s infinite;
+}
+
+@keyframes activityDot {
+  0%, 50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  25% {
+    opacity: 0.5;
+    transform: scale(1.2);
+  }
+}
+
+/* 运行状态信息面板 */
+.running-canvas-info {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.status-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.status-label {
+  color: #666;
+  font-weight: 500;
+  min-width: 70px;
+}
+
+.status-value {
+  color: #262626;
+  font-weight: 600;
+}
+
+/* 运行中的边样式 */
+.react-flow__edge.running-edge {
+  animation: edgeFlow 2s infinite;
+}
+
+@keyframes edgeFlow {
+  0% {
+    stroke-dasharray: 5, 5;
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dasharray: 5, 5;
+    stroke-dashoffset: 10;
+  }
+}
+
+/* Badge样式优化 */
+.ant-badge-ribbon {
+  z-index: 10;
+}
+
+.ant-badge-ribbon-wrapper {
+  overflow: visible;
+}
+
+/* 系统运行状态下的背景 */
+.running-node-canvas .react-flow.system-running {
+  background: linear-gradient(135deg, #f6ffed 0%, #f0f9ff 100%);
+}

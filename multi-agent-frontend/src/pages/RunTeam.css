@@ -1,0 +1,189 @@
+.run-team {
+  min-height: 100vh;
+  background: #f5f5f5;
+}
+
+.run-team-header {
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 0 24px;
+}
+
+.run-team-header .header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  height: 64px;
+}
+
+.back-button {
+  color: #666;
+  font-size: 14px;
+}
+
+.back-button:hover {
+  color: #1677ff;
+}
+
+.page-title {
+  margin: 0 !important;
+  color: #262626 !important;
+  font-size: 20px !important;
+  font-weight: 600;
+}
+
+.run-team-content {
+  padding: 40px 24px;
+}
+
+.content-container {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.result-icon {
+  color: #1677ff;
+  font-size: 72px;
+}
+
+.ant-result-title {
+  color: #262626 !important;
+  font-size: 28px !important;
+  font-weight: 600;
+}
+
+.ant-result-subtitle {
+  color: #666 !important;
+  font-size: 16px;
+}
+
+.navigation-section {
+  width: 100%;
+  align-items: center;
+}
+
+.navigation-section .ant-typography {
+  text-align: center;
+  color: #666;
+  margin-bottom: 0;
+}
+
+.feature-preview {
+  margin-top: 40px;
+  display: flex;
+  justify-content: center;
+}
+
+.preview-card {
+  max-width: 500px;
+  width: 100%;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.preview-card h4 {
+  color: #262626;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.feature-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.feature-list li {
+  padding: 8px 0;
+  color: #666;
+  position: relative;
+  padding-left: 20px;
+}
+
+.feature-list li::before {
+  content: '•';
+  color: #1677ff;
+  font-weight: bold;
+  position: absolute;
+  left: 0;
+}
+
+/* 按钮样式 */
+.ant-btn-lg {
+  height: 44px;
+  padding: 0 24px;
+  font-size: 16px;
+  border-radius: 8px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .run-team-content {
+    padding: 24px 16px;
+  }
+  
+  .result-icon {
+    font-size: 56px;
+  }
+  
+  .ant-result-title {
+    font-size: 24px !important;
+  }
+  
+  .ant-result-subtitle {
+    font-size: 14px;
+  }
+  
+  .navigation-section {
+    text-align: center;
+  }
+  
+  .preview-card {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .run-team-header {
+    padding: 0 16px;
+  }
+  
+  .page-title {
+    font-size: 18px !important;
+  }
+  
+  .back-button {
+    padding: 4px 8px;
+  }
+  
+  .ant-space-compact .ant-btn {
+    margin: 4px;
+  }
+}
+
+/* 动画效果 */
+.result-icon {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.preview-card {
+  transition: all 0.3s ease;
+}
+
+.preview-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
