@@ -1,6 +1,6 @@
 import React from 'react';
 import { Layout, Card, Button, Space, Typography } from 'antd';
-import { PlusOutlined, TeamOutlined, RocketOutlined } from '@ant-design/icons';
+import { PlusOutlined, TeamOutlined, RocketOutlined, RobotOutlined, ToolOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import './HomePage.css';
 
@@ -16,6 +16,16 @@ const HomePage: React.FC = () => {
 
   const handleExploreTeamPool = () => {
     navigate('/team-pool');
+  };
+
+  const handleExploreAgentPool = () => {
+    // 暂时跳转到构建页面，后续可以创建专门的Agent Pool页面
+    navigate('/builder?tab=agent-pool');
+  };
+
+  const handleExploreToolkitPool = () => {
+    // 暂时显示提示，后续可以创建专门的Toolkit页面
+    console.log('Toolkit Pool - Coming Soon');
   };
 
   return (
@@ -77,6 +87,55 @@ const HomePage: React.FC = () => {
               <Card.Meta
                 title="Explore Team Pool"
                 description="查看和管理已创建的智能体团队，从现有配置中选择合适的团队进行运行"
+              />
+            </Card>
+
+            <Card
+              className="option-card agent-pool-card"
+              hoverable
+              cover={
+                <div className="card-cover agent-pool-cover">
+                  <RobotOutlined className="card-icon" />
+                </div>
+              }
+              actions={[
+                <Button 
+                  size="large" 
+                  onClick={handleExploreAgentPool}
+                  className="card-button"
+                >
+                  浏览智能体
+                </Button>
+              ]}
+            >
+              <Card.Meta
+                title="Explore Agent Pool"
+                description="探索预配置的专业智能体，包括数据分析、写作助手、代码审查等各类专家"
+              />
+            </Card>
+
+            <Card
+              className="option-card toolkit-card"
+              hoverable
+              cover={
+                <div className="card-cover toolkit-cover">
+                  <ToolOutlined className="card-icon" />
+                </div>
+              }
+              actions={[
+                <Button 
+                  size="large" 
+                  onClick={handleExploreToolkitPool}
+                  className="card-button"
+                  disabled
+                >
+                  即将推出
+                </Button>
+              ]}
+            >
+              <Card.Meta
+                title="Explore Toolkit Pool"
+                description="发现各种强大的工具集合，为您的智能体提供更多能力和功能扩展"
               />
             </Card>
           </div>

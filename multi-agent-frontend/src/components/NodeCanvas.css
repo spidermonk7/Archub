@@ -198,3 +198,25 @@
   stroke-width: 4;
   filter: drop-shadow(0 0 8px rgba(22, 119, 255, 0.6));
 }
+
+/* Edge创建模式样式 */
+.creating-edge-source {
+  box-shadow: 0 0 0 3px rgba(82, 196, 26, 0.3) !important;
+  border-color: #52c41a !important;
+}
+
+.creating-edge-target {
+  box-shadow: 0 0 0 3px rgba(255, 77, 79, 0.3) !important;
+  border-color: #ff4d4f !important;
+}
+
+.creating-edge-candidate {
+  box-shadow: 0 0 0 3px rgba(22, 119, 255, 0.2) !important;
+  border-color: #1677ff !important;
+  cursor: pointer !important;
+}
+
+.creating-edge-candidate:hover {
+  box-shadow: 0 0 0 3px rgba(22, 119, 255, 0.4) !important;
+  transform: translateY(-1px) !important;
+}

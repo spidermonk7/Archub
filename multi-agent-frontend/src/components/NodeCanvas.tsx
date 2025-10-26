@@ -25,6 +25,11 @@ interface NodeCanvasProps {
   selectedNodes: string[];
   onNodesSelect: (nodeIds: string[]) => void;
   onNodePositionChange?: (nodeId: string, position: { x: number; y: number }) => void;
+  isCreatingEdge?: boolean;
+  edgeCreationSource?: string;
+  edgeCreationTarget?: string;
+  onNodeClick?: (nodeId: string) => void;
+  mousePosition?: { x: number; y: number };
 }
 
 const getNodeTypeColor = (type: string): string => {
@@ -32,8 +37,6 @@ const getNodeTypeColor = (type: string): string => {
     input: 'cyan',
     output: 'orange',
     agent: 'blue',
-    tool: 'green',
-    coordinator: 'purple',
     default: 'default',
   };
   return colors[type] || colors.default;
@@ -44,14 +47,15 @@ const getTypeLabel = (type: string): string => {
     input: '输入',
     output: '输出',
     agent: '智能体',
-    tool: '工具',
-    coordinator: '协调器',
   };
   return labels[type] || type;
 };
 
 const CustomNode: React.FC<any> = ({ data, selected }) => {
   const isSpecialNode = data.type === 'input' || data.type === 'output';
+  const isCreatingEdgeSource = data.isCreatingEdgeSource;
+  const isCreatingEdgeTarget = data.isCreatingEdgeTarget;
+  const isCreatingEdgeCandidate = data.isCreatingEdgeCandidate;
   
   return (
     <>
@@ -72,14 +76,25 @@ const CustomNode: React.FC<any> = ({ data, selected }) => {
             <Tag color={getNodeTypeColor(data.type)}>{data.typeLabel}</Tag>
           </div>
         }
-        className={`custom-node ${selected ? 'selected' : ''} ${isSpecialNode ? 'special-node' : ''}`}
+        className={`custom-node ${selected ? 'selected' : ''} ${isSpecialNode ? 'special-node' : ''} ${
+          isCreatingEdgeSource ? 'creating-edge-source' : 
+          isCreatingEdgeTarget ? 'creating-edge-target' : 
+          isCreatingEdgeCandidate ? 'creating-edge-candidate' : ''
+        }`}
         style={{
           width: 200,
           minHeight: 120,
-          border: selected ? '2px solid #1677ff' : 
+          border: isCreatingEdgeSource ? '2px solid #52c41a' :
+                  isCreatingEdgeTarget ? '2px solid #ff4d4f' :
+                  isCreatingEdgeCandidate ? '2px solid #1677ff' :
+                  selected ? '2px solid #1677ff' : 
                   isSpecialNode ? '2px solid #52c41a' : '1px solid #d9d9d9',
-          boxShadow: selected ? '0 4px 12px rgba(22, 119, 255, 0.3)' : 
+          boxShadow: isCreatingEdgeSource ? '0 0 0 3px rgba(82, 196, 26, 0.3)' :
+                     isCreatingEdgeTarget ? '0 0 0 3px rgba(255, 77, 79, 0.3)' :
+                     isCreatingEdgeCandidate ? '0 0 0 3px rgba(22, 119, 255, 0.3)' :
+                     selected ? '0 4px 12px rgba(22, 119, 255, 0.3)' : 
                      isSpecialNode ? '0 4px 12px rgba(82, 196, 26, 0.3)' : '0 2px 8px rgba(0,0,0,0.1)',
+          cursor: isCreatingEdgeCandidate ? 'pointer' : 'default',
         }}
         styles={{ body: { padding: '8px 12px' } }}
       >
@@ -131,6 +146,11 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
   selectedNodes,
   onNodesSelect,
   onNodePositionChange,
+  isCreatingEdge = false,
+  edgeCreationSource,
+  edgeCreationTarget,
+  onNodeClick,
+  mousePosition,
 }) => {
   const flowNodes = useMemo(() => {
     return nodes.map((node): FlowNode => ({
@@ -140,15 +160,19 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
       data: {
         ...node,
         typeLabel: getTypeLabel(node.type),
+        isCreatingEdgeSource: isCreatingEdge && edgeCreationSource === node.id,
+        isCreatingEdgeTarget: isCreatingEdge && edgeCreationTarget === node.id,
+        isCreatingEdgeCandidate: isCreatingEdge && 
+          (!edgeCreationSource || (edgeCreationSource !== node.id && !edgeCreationTarget)),
       },
       selected: selectedNodes.includes(node.id),
-      draggable: true,
-      selectable: true,
+      draggable: !isCreatingEdge, // 仍然在创建模式下禁用拖拽
+      selectable: true, // 允许选择，这样可以响应点击事件
     }));
-  }, [nodes, selectedNodes]);
+  }, [nodes, selectedNodes, isCreatingEdge, edgeCreationSource, edgeCreationTarget]);
 
   const flowEdges = useMemo(() => {
-    return edges.map((edge): FlowEdge => ({
+    const regularEdges = edges.map((edge): FlowEdge => ({
       id: edge.id,
       source: edge.source,
       target: edge.target,
@@ -183,7 +207,36 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
         fillOpacity: 0.9,
       },
     }));
-  }, [edges]);
+
+    // 添加创建中的虚线边
+    if (isCreatingEdge && edgeCreationSource && mousePosition) {
+      const sourceNode = nodes.find(n => n.id === edgeCreationSource);
+      if (sourceNode) {
+        const previewEdge: FlowEdge = {
+          id: 'preview-edge',
+          source: edgeCreationSource,
+          target: 'preview-target',
+          type: 'straight',
+          animated: false,
+          style: {
+            stroke: '#1677ff',
+            strokeWidth: 2,
+            strokeDasharray: '10,5',
+            opacity: 0.6,
+          },
+          markerEnd: {
+            type: 'arrowclosed',
+            width: 15,
+            height: 15,
+            color: '#1677ff',
+          },
+        };
+        regularEdges.push(previewEdge);
+      }
+    }
+
+    return regularEdges;
+  }, [edges, isCreatingEdge, edgeCreationSource, mousePosition, nodes]);
 
   const [reactFlowNodes, setReactFlowNodes, onNodesChange] = useNodesState<FlowNode>([]);
   const [reactFlowEdges, setReactFlowEdges] = useEdgesState<FlowEdge>([]);
@@ -199,10 +252,26 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
 
   const onSelectionChange = useCallback(
     ({ nodes }: { nodes: FlowNode[] }) => {
-      const nodeIds = nodes.map(node => node.id);
-      onNodesSelect(nodeIds);
+      if (!isCreatingEdge) {
+        // 普通模式下的节点选择
+        const nodeIds = nodes.map(node => node.id);
+        onNodesSelect(nodeIds);
+      }
+      // 在Edge创建模式下不处理选择变化，让节点点击事件处理
     },
-    [onNodesSelect]
+    [onNodesSelect, isCreatingEdge]
+  );
+
+  const handleNodeClick = useCallback(
+    (event: React.MouseEvent, node: FlowNode) => {
+      if (isCreatingEdge && onNodeClick) {
+        // Edge创建模式下的节点点击
+        event.stopPropagation();
+        onNodeClick(node.id);
+      }
+      // 普通模式下不需要特殊处理，让ReactFlow的默认选择逻辑处理
+    },
+    [isCreatingEdge, onNodeClick]
   );
 
   const handleNodesChange = useCallback(
@@ -236,12 +305,13 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
         edges={reactFlowEdges}
         onSelectionChange={onSelectionChange}
         onNodesChange={handleNodesChange}
+        onNodeClick={handleNodeClick}
         nodeTypes={nodeTypes}
         connectionMode={ConnectionMode.Loose}
-        nodesDraggable={true}
+        nodesDraggable={!isCreatingEdge} // 创建模式下禁用拖拽
         nodesConnectable={false}
         edgesReconnectable={false}
-        elementsSelectable={true}
+        elementsSelectable={true} // 始终允许选择
         fitView
         attributionPosition="bottom-left"
       >

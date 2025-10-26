@@ -51,8 +51,13 @@ export const saveEdgeConfig = async (edge: Edge): Promise<void> => {
   }
 };
 
-// 编译图
-export const compileGraph = async (nodes: Node[], edges: Edge[]): Promise<void> => {
+// 编译和保存图配置（支持自定义名称和描述）
+export const compileAndSaveGraph = async (
+  nodes: Node[], 
+  edges: Edge[], 
+  teamName?: string, 
+  teamDescription?: string
+): Promise<void> => {
   try {
     const graphConfig: GraphConfig = {
       nodes,
@@ -60,7 +65,8 @@ export const compileGraph = async (nodes: Node[], edges: Edge[]): Promise<void> 
       metadata: {
         compiledAt: new Date().toISOString(),
         version: '1.0',
-        name: `multi-agent-graph-${Date.now()}`,
+        name: teamName || `multi-agent-graph-${Date.now()}`,
+        description: teamDescription || `包含 ${nodes.length} 个节点和 ${edges.length} 个连接的多智能体系统`,
       },
     };
 
@@ -89,6 +95,41 @@ export const compileGraph = async (nodes: Node[], edges: Edge[]): Promise<void> 
     console.error('Error compiling graph:', error);
     throw error;
   }
+};
+
+// 仅编译验证（不保存到数据库，用于命名前的验证）
+export const validateGraph = async (nodes: Node[], edges: Edge[]): Promise<GraphConfig> => {
+  try {
+    const graphConfig: GraphConfig = {
+      nodes,
+      edges,
+      metadata: {
+        compiledAt: new Date().toISOString(),
+        version: '1.0',
+        name: `temp-graph-${Date.now()}`,
+      },
+    };
+
+    // 模拟编译验证过程
+    console.log('验证图配置:', graphConfig);
+    
+    if (nodes.length === 0) {
+      throw new Error('Graph must contain at least one node');
+    }
+    
+    // 模拟网络延迟
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    return graphConfig;
+  } catch (error) {
+    console.error('Error validating graph:', error);
+    throw error;
+  }
+};
+
+// 保持向后兼容的原函数
+export const compileGraph = async (nodes: Node[], edges: Edge[]): Promise<void> => {
+  return compileAndSaveGraph(nodes, edges);
 };
 
 // 保存到数据库

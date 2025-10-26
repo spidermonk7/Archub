@@ -46,13 +46,16 @@ class TeamDatabase:
     def save_team(self, team_config: Dict[str, Any]) -> str:
         """保存团队配置"""
         try:
-            team_id = team_config.get('metadata', {}).get('name', f"team_{int(datetime.now().timestamp())}")
-            name = team_config.get('metadata', {}).get('name', 'Unnamed Team')
-            description = f"包含 {len(team_config.get('nodes', []))} 个节点和 {len(team_config.get('edges', []))} 个连接的多智能体系统"
+            # 优先使用用户提供的名称和描述
+            metadata = team_config.get('metadata', {})
+            team_id = metadata.get('name', f"team_{int(datetime.now().timestamp())}")
+            name = metadata.get('name', 'Unnamed Team')
+            description = metadata.get('description') or f"包含 {len(team_config.get('nodes', []))} 个节点和 {len(team_config.get('edges', []))} 个连接的多智能体系统"
+            
             config_json = json.dumps(team_config, ensure_ascii=False, indent=2)
             node_count = len(team_config.get('nodes', []))
             edge_count = len(team_config.get('edges', []))
-            version = team_config.get('metadata', {}).get('version', '1.0')
+            version = metadata.get('version', '1.0')
             
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
@@ -70,7 +73,7 @@ class TeamDatabase:
                             updated_at = CURRENT_TIMESTAMP
                         WHERE id = ?
                     ''', (name, description, config_json, node_count, edge_count, version, team_id))
-                    print(f"✅ 更新团队: {name}")
+                    print(f"✅ 更新团队: {name} - {description}")
                 else:
                     # 创建新团队
                     cursor.execute('''
@@ -78,7 +81,7 @@ class TeamDatabase:
                                          node_count, edge_count, version)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
                     ''', (team_id, name, description, config_json, node_count, edge_count, version))
-                    print(f"✅ 创建新团队: {name}")
+                    print(f"✅ 创建新团队: {name} - {description}")
                 
                 conn.commit()
                 return team_id

@@ -66,9 +66,9 @@ const EdgeModal: React.FC<EdgeModalProps> = ({
 
   const getTypeLabel = (type: string): string => {
     const labels: Record<string, string> = {
+      input: '输入',
+      output: '输出',
       agent: '智能体',
-      tool: '工具',
-      coordinator: '协调器',
     };
     return labels[type] || type;
   };

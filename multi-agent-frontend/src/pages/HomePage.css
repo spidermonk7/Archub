@@ -45,9 +45,12 @@
 
 .homepage-cards {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 40px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 32px;
   margin-bottom: 60px;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .option-card {
@@ -79,6 +82,14 @@
 
 .explore-cover {
   background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.agent-pool-cover {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.toolkit-cover {
+  background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
 }
 
 .python-cover {
@@ -156,6 +167,28 @@
   border-color: #f5576c;
 }
 
+.agent-pool-card .card-button {
+  color: #667eea;
+  border-color: #667eea;
+}
+
+.agent-pool-card .card-button:hover {
+  background: #667eea;
+  color: white;
+  border-color: #667eea;
+}
+
+.toolkit-card .card-button {
+  color: #fcb69f;
+  border-color: #fcb69f;
+}
+
+.toolkit-card .card-button:hover {
+  background: #fcb69f;
+  color: white;
+  border-color: #fcb69f;
+}
+
 .python-card .card-button {
   background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
   border: none;
@@ -170,6 +203,13 @@
 }
 
 /* 响应式设计 */
+@media (max-width: 1024px) {
+  .homepage-cards {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
+}
+
 @media (max-width: 768px) {
   .homepage-cards {
     grid-template-columns: 1fr;

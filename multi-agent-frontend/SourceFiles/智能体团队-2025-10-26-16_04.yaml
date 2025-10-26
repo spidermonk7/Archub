@@ -1,0 +1,59 @@
+nodes:
+  - id: input-node
+    name: 用户输入
+    type: input
+    description: 接收用户输入的入口节点
+    config:
+      inputType: text
+      placeholder: 请输入您的需求...
+      validation: ''
+    position:
+      x: 100
+      'y': 200
+  - id: output-node
+    name: 结果输出
+    type: output
+    description: 向用户返回结果的出口节点
+    config:
+      outputFormat: text
+      template: ''
+      successMessage: 处理完成
+    position:
+      x: 600
+      'y': 200
+  - name: 智能体节点
+    type: agent
+    description: 这是一个智能体节点，用于处理用户输入并生成响应
+    config:
+      llmModel: gpt-4o-mini
+      systemPrompt: You are a helpful assistant.
+      tools:
+        - math
+    position:
+      x: 366.9228215999695
+      'y': 73.6113640560441
+    id: node_1761465844892
+edges:
+  - source: input-node
+    target: node_1761465844892
+    type: hard
+    config:
+      description: ''
+      priority: normal
+      condition: ''
+    id: edge_1761465862180
+  - source: node_1761465844892
+    target: output-node
+    type: hard
+    config:
+      description: ''
+      priority: normal
+      condition: ''
+    id: edge_1761465866430
+metadata:
+  compiledAt: '2025-10-26T08:04:32.638Z'
+  version: '1.0'
+  name: 智能体团队-2025-10-26-16:04
+  description: |-
+    一个包含 0 个智能体和 
+    0 个连接的多功能团队

@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Modal, Form, Input, Select, InputNumber, Switch, Button, Space, Divider } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
-import { Node, NodeType, ConfigField } from '../utils/types';
-import { getNodeTypes } from '../utils/api';
+import { Modal, Form, Input, Select, Button, Space, Divider, Card, Row, Col, Typography } from 'antd';
+import { PlusOutlined, CheckOutlined } from '@ant-design/icons';
+import { Node } from '../utils/types';
 
 const { TextArea } = Input;
 const { Option } = Select;
+const { Text } = Typography;
 
 interface NodeModalProps {
   visible: boolean;
@@ -13,46 +13,157 @@ interface NodeModalProps {
   onSubmit: (node: Omit<Node, 'id'>) => void;
 }
 
+// 定义可用的LLM模型
+const LLM_MODELS = [
+  { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+  { value: 'gpt-4o', label: 'GPT-4o' },
+  { value: 'gpt-4', label: 'GPT-4' },
+  { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
+  { value: 'claude-3-sonnet', label: 'Claude 3 Sonnet' },
+  { value: 'claude-3-haiku', label: 'Claude 3 Haiku' },
+];
+
+// 定义系统支持的工具
+const AVAILABLE_TOOLS = [
+  {
+    value: 'math',
+    label: 'Math Calculator',
+    description: '执行数学计算和公式求解',
+    icon: '🧮'
+  },
+  {
+    value: 'code_executor',
+    label: 'Code Executor',
+    description: '执行Python代码并返回结果',
+    icon: '💻'
+  },
+];
+
+// 定义输入数据类型
+const INPUT_DATA_TYPES = [
+  { value: 'text', label: '文本', icon: '📝', description: '处理文本内容' },
+  { value: 'image', label: '图像', icon: '🖼️', description: '处理图像文件' },
+  { value: 'audio', label: '音频', icon: '🎵', description: '处理音频文件' },
+  { value: 'video', label: '视频', icon: '🎬', description: '处理视频文件' },
+  { value: 'file', label: '文件', icon: '📄', description: '处理各种文件格式' },
+];
+
+// 定义输出数据类型
+const OUTPUT_DATA_TYPES = [
+  { value: 'text', label: '文本', icon: '📝', description: '输出文本内容' },
+  { value: 'image', label: '图像', icon: '🖼️', description: '生成图像文件' },
+  { value: 'datafile', label: '数据文件', icon: '📊', description: '生成数据文件（CSV、Excel等）' },
+  { value: 'audio', label: '音频', icon: '🎵', description: '生成音频文件' },
+  { value: 'json', label: 'JSON数据', icon: '🔢', description: '输出结构化JSON数据' },
+];
+
+// 定义文本输出的Schema类型
+const OUTPUT_SCHEMAS = [
+  { value: 'free_text', label: '自由文本', description: '无特定格式的自然语言文本' },
+  { value: 'json', label: 'JSON格式', description: '结构化的JSON数据格式' },
+  { value: 'markdown', label: 'Markdown格式', description: 'Markdown标记语言格式' },
+  { value: 'xml', label: 'XML格式', description: 'XML标记语言格式' },
+  { value: 'csv', label: 'CSV格式', description: '逗号分隔值格式' },
+  { value: 'custom', label: '自定义格式', description: '用户自定义的输出格式' },
+];
+
+// 定义节点类型 - 只保留智能体节点
+const NODE_TYPES = [
+  {
+    value: 'agent',
+    label: '智能体',
+    description: '具有AI推理能力的处理节点',
+  },
+];
+
 const NodeModal: React.FC<NodeModalProps> = ({ visible, onCancel, onSubmit }) => {
   const [form] = Form.useForm();
-  const [nodeTypes, setNodeTypes] = useState<NodeType[]>([]);
-  const [selectedType, setSelectedType] = useState<NodeType | null>(null);
+  const [selectedType, setSelectedType] = useState<string>('agent');
   const [loading, setLoading] = useState(false);
+  const [selectedTools, setSelectedTools] = useState<string[]>([]);
+  const [outputType, setOutputType] = useState<string>('text');
 
   const handleTypeChange = useCallback((typeValue: string) => {
-    const type = nodeTypes.find(t => t.value === typeValue);
-    setSelectedType(type || null);
+    setSelectedType(typeValue);
     
-    // 重置配置字段的值
-    const configFields = type?.configSchema || [];
-    const configValues: any = {};
-    configFields.forEach(field => {
-      if (field.defaultValue !== undefined) {
-        configValues[field.name] = field.defaultValue;
-      }
+    // 当选择智能体类型时，设置默认值
+    if (typeValue === 'agent') {
+      form.setFieldsValue({
+        config: {
+          llmModel: 'gpt-4o-mini',
+          systemPrompt: 'You are a helpful assistant.',
+          inputDataType: 'text',
+          outputDataType: 'text',
+          outputSchema: 'free_text',
+          tools: []
+        }
+      });
+      setSelectedTools([]);
+      setOutputType('text');
+    } else {
+      // 其他类型清空配置
+      form.setFieldsValue({
+        config: {}
+      });
+      setSelectedTools([]);
+      setOutputType('text');
+    }
+  }, [form]);
+
+  const handleOutputTypeChange = useCallback((value: string) => {
+    setOutputType(value);
+    // 如果不是text类型，清除outputSchema字段
+    if (value !== 'text') {
+      const currentConfig = form.getFieldsValue().config || {};
+      const { outputSchema, ...restConfig } = currentConfig;
+      form.setFieldsValue({
+        config: {
+          ...restConfig,
+          outputDataType: value
+        }
+      });
+    }
+  }, [form]);
+
+  const handleToolToggle = useCallback((toolValue: string) => {
+    setSelectedTools(prev => {
+      const newSelectedTools = prev.includes(toolValue)
+        ? prev.filter(tool => tool !== toolValue)
+        : [...prev, toolValue];
+      
+      // 同步更新表单字段
+      form.setFieldsValue({
+        config: {
+          ...form.getFieldsValue().config,
+          tools: newSelectedTools
+        }
+      });
+      
+      return newSelectedTools;
     });
-    
-    form.setFieldsValue({ config: configValues });
-  }, [nodeTypes, form]);
+  }, [form]);
 
   useEffect(() => {
     if (visible) {
-      loadNodeTypes();
-      // 设置默认类型为agent
-      setTimeout(() => {
-        handleTypeChange('agent');
-      }, 100);
+      // 设置默认值
+      form.setFieldsValue({
+        name: "智能体节点",
+        type: "agent",
+        description: "这是一个智能体节点，用于处理用户输入并生成响应",
+        config: {
+          llmModel: 'gpt-4o-mini',
+          systemPrompt: 'You are a helpful assistant.',
+          inputDataType: 'text',
+          outputDataType: 'text',
+          outputSchema: 'free_text',
+          tools: []
+        }
+      });
+      setSelectedType('agent');
+      setSelectedTools([]);
+      setOutputType('text');
     }
-  }, [visible, handleTypeChange]);
-
-  const loadNodeTypes = async () => {
-    try {
-      const types = await getNodeTypes();
-      setNodeTypes(types);
-    } catch (error) {
-      console.error('Failed to load node types:', error);
-    }
-  };
+  }, [visible, form]);
 
   const handleSubmit = async () => {
     try {
@@ -63,7 +174,10 @@ const NodeModal: React.FC<NodeModalProps> = ({ visible, onCancel, onSubmit }) =>
         name: values.name,
         type: values.type,
         description: values.description,
-        config: values.config || {},
+        config: {
+          ...values.config,
+          tools: selectedTools // 确保工具选择被包含
+        },
         position: {
           x: Math.random() * 400 + 100,
           y: Math.random() * 300 + 100,
@@ -72,7 +186,9 @@ const NodeModal: React.FC<NodeModalProps> = ({ visible, onCancel, onSubmit }) =>
 
       onSubmit(node);
       form.resetFields();
-      setSelectedType(null);
+      setSelectedType('agent');
+      setSelectedTools([]);
+      setOutputType('text');
     } catch (error) {
       console.error('Form validation failed:', error);
     } finally {
@@ -82,93 +198,10 @@ const NodeModal: React.FC<NodeModalProps> = ({ visible, onCancel, onSubmit }) =>
 
   const handleCancel = () => {
     form.resetFields();
-    setSelectedType(null);
+    setSelectedType('agent');
+    setSelectedTools([]);
+    setOutputType('text');
     onCancel();
-  };
-
-  const renderConfigField = (field: ConfigField) => {
-    const { name, label, type, required, options, placeholder } = field;
-    
-    switch (type) {
-      case 'text':
-        return (
-          <Form.Item
-            key={name}
-            name={['config', name]}
-            label={label}
-            rules={[{ required, message: `请输入${label}` }]}
-          >
-            <Input placeholder={placeholder} />
-          </Form.Item>
-        );
-      
-      case 'textarea':
-        return (
-          <Form.Item
-            key={name}
-            name={['config', name]}
-            label={label}
-            rules={[{ required, message: `请输入${label}` }]}
-          >
-            <TextArea 
-              rows={4} 
-              placeholder={placeholder}
-              autoSize={{ minRows: 3, maxRows: 8 }}
-            />
-          </Form.Item>
-        );
-      
-      case 'select':
-        return (
-          <Form.Item
-            key={name}
-            name={['config', name]}
-            label={label}
-            rules={[{ required, message: `请选择${label}` }]}
-          >
-            <Select placeholder={`请选择${label}`}>
-              {options?.map(option => (
-                <Option key={option.value} value={option.value}>
-                  {option.label}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
-        );
-      
-      case 'number':
-        return (
-          <Form.Item
-            key={name}
-            name={['config', name]}
-            label={label}
-            rules={[{ required, message: `请输入${label}` }]}
-          >
-            <InputNumber 
-              style={{ width: '100%' }}
-              placeholder={placeholder}
-              min={0}
-              max={2}
-              step={0.1}
-            />
-          </Form.Item>
-        );
-      
-      case 'boolean':
-        return (
-          <Form.Item
-            key={name}
-            name={['config', name]}
-            label={label}
-            valuePropName="checked"
-          >
-            <Switch />
-          </Form.Item>
-        );
-      
-      default:
-        return null;
-    }
   };
 
   return (
@@ -189,7 +222,7 @@ const NodeModal: React.FC<NodeModalProps> = ({ visible, onCancel, onSubmit }) =>
           创建节点
         </Button>,
       ]}
-      width={600}
+      width={650}
       destroyOnHidden={true}
     >
       <Form
@@ -200,6 +233,14 @@ const NodeModal: React.FC<NodeModalProps> = ({ visible, onCancel, onSubmit }) =>
           name: "智能体节点",
           type: "agent",
           description: "这是一个智能体节点，用于处理用户输入并生成响应",
+          config: {
+            llmModel: 'gpt-4o-mini',
+            systemPrompt: 'You are a helpful assistant.',
+            inputDataType: 'text',
+            outputDataType: 'text',
+            outputSchema: 'free_text',
+            tools: []
+          }
         }}
       >
         <Form.Item
@@ -216,7 +257,7 @@ const NodeModal: React.FC<NodeModalProps> = ({ visible, onCancel, onSubmit }) =>
           rules={[{ required: true, message: '请选择节点类型' }]}
         >
           <Select placeholder="请选择节点类型" onChange={handleTypeChange}>
-            {nodeTypes.map(type => (
+            {NODE_TYPES.map(type => (
               <Option key={type.value} value={type.value}>
                 <div>
                   <div style={{ fontWeight: 'bold' }}>{type.label}</div>
@@ -239,10 +280,270 @@ const NodeModal: React.FC<NodeModalProps> = ({ visible, onCancel, onSubmit }) =>
           />
         </Form.Item>
 
-        {selectedType && selectedType.configSchema.length > 0 && (
+        {selectedType === 'agent' && (
           <>
-            <Divider>节点配置</Divider>
-            {selectedType.configSchema.map(renderConfigField)}
+            <Divider>智能体配置</Divider>
+            
+            <Form.Item
+              name={['config', 'llmModel']}
+              label="LLM模型"
+              rules={[{ required: true, message: '请选择LLM模型' }]}
+            >
+              <Select placeholder="选择LLM模型" size="large">
+                {LLM_MODELS.map(model => (
+                  <Option key={model.value} value={model.value}>
+                    <div style={{ 
+                      padding: '6px 0',
+                      fontSize: '14px',
+                      fontWeight: '500'
+                    }}>
+                      {model.label}
+                    </div>
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+
+            <Form.Item
+              name={['config', 'systemPrompt']}
+              label="System Prompt"
+              rules={[{ required: true, message: '请输入System Prompt' }]}
+            >
+              <TextArea 
+                rows={4} 
+                placeholder="请输入System Prompt，例如：You are a helpful assistant."
+                autoSize={{ minRows: 3, maxRows: 8 }}
+              />
+            </Form.Item>
+
+            <Divider>数据类型配置</Divider>
+
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  name={['config', 'inputDataType']}
+                  label="输入数据类型"
+                  rules={[{ required: true, message: '请选择输入数据类型' }]}
+                >
+                  <Select placeholder="选择输入类型" size="large" optionLabelProp="label">
+                    {INPUT_DATA_TYPES.map(type => (
+                      <Option key={type.value} value={type.value} label={type.label}>
+                        <div style={{ 
+                          display: 'flex', 
+                          alignItems: 'flex-start',
+                          padding: '8px 4px',
+                          minHeight: '48px'
+                        }}>
+                          <span style={{ 
+                            marginRight: '12px', 
+                            fontSize: '18px',
+                            minWidth: '24px',
+                            textAlign: 'center',
+                            marginTop: '2px'
+                          }}>
+                            {type.icon}
+                          </span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ 
+                              fontWeight: '500',
+                              fontSize: '14px',
+                              lineHeight: '20px',
+                              marginBottom: '2px'
+                            }}>
+                              {type.label}
+                            </div>
+                            <div style={{ 
+                              fontSize: '12px', 
+                              color: '#666',
+                              lineHeight: '16px',
+                              wordWrap: 'break-word',
+                              whiteSpace: 'normal'
+                            }}>
+                              {type.description}
+                            </div>
+                          </div>
+                        </div>
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  name={['config', 'outputDataType']}
+                  label="输出数据类型"
+                  rules={[{ required: true, message: '请选择输出数据类型' }]}
+                >
+                  <Select 
+                    placeholder="选择输出类型"
+                    size="large"
+                    optionLabelProp="label"
+                    onChange={handleOutputTypeChange}
+                  >
+                    {OUTPUT_DATA_TYPES.map(type => (
+                      <Option key={type.value} value={type.value} label={type.label}>
+                        <div style={{ 
+                          display: 'flex', 
+                          alignItems: 'flex-start',
+                          padding: '8px 4px',
+                          minHeight: '48px'
+                        }}>
+                          <span style={{ 
+                            marginRight: '12px', 
+                            fontSize: '18px',
+                            minWidth: '24px',
+                            textAlign: 'center',
+                            marginTop: '2px'
+                          }}>
+                            {type.icon}
+                          </span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ 
+                              fontWeight: '500',
+                              fontSize: '14px',
+                              lineHeight: '20px',
+                              marginBottom: '2px'
+                            }}>
+                              {type.label}
+                            </div>
+                            <div style={{ 
+                              fontSize: '12px', 
+                              color: '#666',
+                              lineHeight: '16px',
+                              wordWrap: 'break-word',
+                              whiteSpace: 'normal'
+                            }}>
+                              {type.description}
+                            </div>
+                          </div>
+                        </div>
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
+
+            {outputType === 'text' && (
+              <Form.Item
+                name={['config', 'outputSchema']}
+                label="输出格式规范"
+                rules={[{ required: true, message: '请选择输出格式规范' }]}
+              >
+                <Select placeholder="选择输出格式" size="large" optionLabelProp="label">
+                  {OUTPUT_SCHEMAS.map(schema => (
+                    <Option key={schema.value} value={schema.value} label={schema.label}>
+                      <div style={{ 
+                        padding: '8px 4px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        minHeight: '40px'
+                      }}>
+                        <div style={{ 
+                          fontWeight: '500',
+                          fontSize: '14px',
+                          lineHeight: '20px',
+                          marginBottom: '2px'
+                        }}>
+                          {schema.label}
+                        </div>
+                        <div style={{ 
+                          fontSize: '12px', 
+                          color: '#666',
+                          lineHeight: '16px',
+                          wordWrap: 'break-word',
+                          whiteSpace: 'normal'
+                        }}>
+                          {schema.description}
+                        </div>
+                      </div>
+                    </Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            )}
+
+            {outputType === 'text' && form.getFieldValue(['config', 'outputSchema']) === 'custom' && (
+              <Form.Item
+                name={['config', 'customSchema']}
+                label="自定义输出格式"
+                rules={[{ required: true, message: '请输入自定义输出格式' }]}
+              >
+                <TextArea 
+                  rows={3} 
+                  placeholder="请描述您的自定义输出格式，例如：JSON schema, 特定的文本模板等"
+                  autoSize={{ minRows: 2, maxRows: 6 }}
+                />
+              </Form.Item>
+            )}
+
+            <Divider>工具配置</Divider>
+
+            <Form.Item
+              label="工具配置"
+              name={['config', 'tools']}
+            >
+              <div style={{ marginTop: '8px' }}>
+                <Text type="secondary" style={{ fontSize: '12px', marginBottom: '12px', display: 'block' }}>
+                  选择此智能体可以使用的工具（可多选）
+                </Text>
+                <Row gutter={[12, 12]}>
+                  {AVAILABLE_TOOLS.map(tool => (
+                    <Col span={12} key={tool.value}>
+                      <Card
+                        size="small"
+                        hoverable
+                        className={`tool-card ${selectedTools.includes(tool.value) ? 'tool-card-selected' : ''}`}
+                        onClick={() => handleToolToggle(tool.value)}
+                        style={{
+                          cursor: 'pointer',
+                          border: selectedTools.includes(tool.value) ? '2px solid #1677ff' : '1px solid #d9d9d9',
+                          backgroundColor: selectedTools.includes(tool.value) ? '#f0f8ff' : '#ffffff',
+                          transition: 'all 0.3s ease'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              marginBottom: '4px',
+                              fontSize: '14px',
+                              fontWeight: 'bold'
+                            }}>
+                              <span style={{ marginRight: '8px', fontSize: '16px' }}>{tool.icon}</span>
+                              {tool.label}
+                            </div>
+                            <Text type="secondary" style={{ fontSize: '12px' }}>
+                              {tool.description}
+                            </Text>
+                          </div>
+                          {selectedTools.includes(tool.value) && (
+                            <CheckOutlined 
+                              style={{ 
+                                color: '#1677ff', 
+                                fontSize: '16px',
+                                marginLeft: '8px'
+                              }} 
+                            />
+                          )}
+                        </div>
+                      </Card>
+                    </Col>
+                  ))}
+                </Row>
+                {selectedTools.length > 0 && (
+                  <div style={{ marginTop: '12px' }}>
+                    <Text type="secondary" style={{ fontSize: '12px' }}>
+                      已选择 {selectedTools.length} 个工具: {selectedTools.map(tool => {
+                        const toolInfo = AVAILABLE_TOOLS.find(t => t.value === tool);
+                        return toolInfo?.label;
+                      }).join(', ')}
+                    </Text>
+                  </div>
+                )}
+              </div>
+            </Form.Item>
           </>
         )}
       </Form>

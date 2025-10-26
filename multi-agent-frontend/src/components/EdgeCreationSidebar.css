@@ -1,0 +1,90 @@
+.edge-creation-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 20px;
+}
+
+/* 为了在没有遮罩层的情况下突出侧边栏，添加一些阴影效果 */
+.ant-drawer-content-wrapper {
+  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.15) !important;
+  border-left: 1px solid #e8e8e8 !important;
+}
+
+.creation-steps {
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.creation-steps .ant-steps-item-title {
+  font-size: 14px !important;
+  font-weight: 500 !important;
+}
+
+.creation-steps .ant-steps-item-description {
+  margin-top: 4px;
+}
+
+.selection-status {
+  flex: 1;
+}
+
+.selected-node {
+  margin-bottom: 12px;
+  padding: 12px;
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 6px;
+}
+
+.selected-node .ant-typography {
+  margin-bottom: 4px;
+}
+
+.node-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.node-info .ant-btn-link {
+  padding: 0;
+  height: auto;
+  font-size: 12px;
+}
+
+.edge-config-form {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e9ecef;
+}
+
+.edge-config-form .ant-typography {
+  margin-bottom: 16px;
+}
+
+.sidebar-actions {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid #e9ecef;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* 高亮效果 */
+.creating-edge-node {
+  box-shadow: 0 0 0 3px rgba(22, 119, 255, 0.3) !important;
+  border-color: #1677ff !important;
+}
+
+.creating-edge-source {
+  box-shadow: 0 0 0 3px rgba(82, 196, 26, 0.3) !important;
+  border-color: #52c41a !important;
+}
+
+.creating-edge-target {
+  box-shadow: 0 0 0 3px rgba(255, 77, 79, 0.3) !important;
+  border-color: #ff4d4f !important;
+}
