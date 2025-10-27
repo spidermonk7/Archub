@@ -290,14 +290,22 @@ def run_sse():
     global current_runner, current_config
 
     try:
+        print(f"🔍 DEBUG: run_sse called")
+        print(f"🔍 DEBUG: current_runner exists = {current_runner is not None}")
+        print(f"🔍 DEBUG: current_config exists = {current_config is not None}")
+        
         if not current_runner or not current_config:
+            print("❌ ERROR: No team loaded")
             return jsonify({
                 'success': False,
                 'error': 'No team loaded. Please load a team first.'
             }), 400
 
         user_input = request.args.get('input', '').strip()
+        print(f"🔍 DEBUG: user_input = '{user_input}'")
+        
         if not user_input:
+            print("❌ ERROR: Input is empty")
             return jsonify({
                 'success': False,
                 'error': 'Input is required'
