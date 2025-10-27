@@ -9,6 +9,7 @@ import AgentPool from './pages/AgentPool';
 import RunTeam from './pages/RunTeam';
 import GraphRunner from './pages/GraphRunner';
 import PythonRunner from './pages/PythonRunner';
+import ToolPool from './pages/ToolPool';
 import './App.css';
 
 const App: React.FC = () => {
@@ -41,6 +42,7 @@ const App: React.FC = () => {
                 <Route path="/run-team" element={<RunTeam />} />
                 <Route path="/runner" element={<GraphRunner />} />
                 <Route path="/python-runner" element={<PythonRunner />} />
+                <Route path="/tool-pool" element={<ToolPool />} />
               </Routes>
             </main>
           </div>

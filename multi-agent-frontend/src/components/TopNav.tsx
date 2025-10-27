@@ -19,6 +19,7 @@ const TopNav: React.FC = () => {
           <Link className={`nav-link ${isActive('/builder')}`} to="/builder">Builder</Link>
           <Link className={`nav-link ${isActive('/agent-pool')}`} to="/agent-pool">Agents</Link>
           <Link className={`nav-link ${isActive('/team-pool')}`} to="/team-pool">Teams</Link>
+          <Link className={`nav-link ${isActive('/tool-pool')}`} to="/tool-pool">Tools</Link>
           <Link className={`nav-link ${isActive('/python-runner')}`} to="/python-runner">Python Runner</Link>
         </nav>
         <div className="nav-actions">

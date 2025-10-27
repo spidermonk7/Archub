@@ -18,13 +18,26 @@ const HomePage: React.FC = () => {
     navigate('/team-pool');
   };
 
-  const actionCards = [
+  type ActionCard = {
+    key: string;
+    title: string;
+    subtitle: string;
+    icon: React.ReactNode;
+    cta: string;
+    tag: string;
+    onClick: () => void;
+    tone: string;
+    disabled?: boolean;
+  };
+
+  const actionCards: ActionCard[] = [
     {
       key: 'builder',
       title: 'Build Multi-Agent Teams',
       subtitle: 'Start from the canvas to define nodes, agents, and workflow logic',
       icon: <PlusOutlined />,
       cta: 'Create Now',
+      tag: 'Instant Launch',
       onClick: handleBuildNewTeam,
       tone: 'violet',
     },
@@ -34,6 +47,7 @@ const HomePage: React.FC = () => {
       subtitle: 'Browse best practices and ready-made templates to iterate quickly',
       icon: <TeamOutlined />,
       cta: 'Browse Teams',
+      tag: 'Instant Launch',
       onClick: handleExploreTeamPool,
       tone: 'cyan',
     },
@@ -43,16 +57,18 @@ const HomePage: React.FC = () => {
       subtitle: 'Explore prebuilt expert agents and drag them straight into your graph',
       icon: <RobotOutlined />,
       cta: 'View Agents',
+      tag: 'Instant Launch',
       onClick: () => navigate('/agent-pool'),
       tone: 'blue',
     },
     {
       key: 'toolkit',
       title: 'Extended Toolkit',
-      subtitle: 'More workflow tools and plugins are on the way, stay tuned',
+      subtitle: 'Explore curated workflow tools and integrations ready to plug in',
       icon: <ToolOutlined />,
-      cta: 'Coming Soon',
-      disabled: true,
+      cta: 'Explore Tools',
+      tag: 'Instant Launch',
+      onClick: () => navigate('/tool-pool'),
       tone: 'amber',
     },
   ];
@@ -122,7 +138,7 @@ const HomePage: React.FC = () => {
                     <span className="card-icon">{card.icon}</span>
                   </div>
                   <Tag bordered={false} className="card-tag">
-                    {card.key === 'toolkit' ? 'Coming Soon' : 'Instant Launch'}
+                    {card.tag}
                   </Tag>
                 </div>
                 <div className="option-card-body">
