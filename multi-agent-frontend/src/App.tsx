@@ -4,6 +4,7 @@ import { ConfigProvider } from 'antd';
 import HomePage from './pages/HomePage';
 import GraphBuilder from './pages/GraphBuilder';
 import TeamPool from './pages/TeamPool';
+import AgentPool from './pages/AgentPool';
 import RunTeam from './pages/RunTeam';
 import GraphRunner from './pages/GraphRunner';
 import PythonRunner from './pages/PythonRunner';
@@ -25,6 +26,7 @@ const App: React.FC = () => {
             <Route path="/" element={<HomePage />} />
             <Route path="/builder" element={<GraphBuilder />} />
             <Route path="/team-pool" element={<TeamPool />} />
+            <Route path="/agent-pool" element={<AgentPool />} />
             <Route path="/run-team" element={<RunTeam />} />
             <Route path="/runner" element={<GraphRunner />} />
             <Route path="/python-runner" element={<PythonRunner />} />

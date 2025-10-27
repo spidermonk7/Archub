@@ -19,8 +19,7 @@ const HomePage: React.FC = () => {
   };
 
   const handleExploreAgentPool = () => {
-    // 暂时跳转到构建页面，后续可以创建专门的Agent Pool页面
-    navigate('/builder?tab=agent-pool');
+    navigate('/agent-pool');
   };
 
   const handleExploreToolkitPool = () => {
