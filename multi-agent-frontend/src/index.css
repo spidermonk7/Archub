@@ -11,3 +11,15 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Hide dev overlays that can get stuck due to ResizeObserver churn (dev only) */
+iframe#webpack-dev-server-client-overlay,
+#webpack-dev-server-client-overlay,
+.webpack-dev-server-client-overlay,
+#react-error-overlay,
+#react-dev-overlay {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}

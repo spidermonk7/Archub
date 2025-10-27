@@ -3,9 +3,6 @@ import {
   ReactFlow,
   Node as FlowNode,
   Edge as FlowEdge,
-  Background,
-  Controls,
-  MiniMap,
   useNodesState,
   useEdgesState,
   Panel,
@@ -15,22 +12,33 @@ import { Node, Edge } from '../utils/types';
 import '@xyflow/react/dist/style.css';
 import './RunningNodeCanvas.css';
 
+type NodeState = 'waiting' | 'processing' | 'done' | undefined;
+
 interface RunningNodeCanvasProps {
   nodes: Node[];
   edges: Edge[];
   activeNodes: Set<string>;
   isRunning: boolean;
+  nodeStates?: Record<string, NodeState>;
 }
 
 const RunningCustomNode: React.FC<any> = ({ data, selected }) => {
   const isActive = data.isActive;
   const isRunning = data.isRunning;
+  const state: 'waiting' | 'processing' | 'done' | undefined = data.state;
+
+  const badge = (() => {
+    if (state === 'processing') return { text: '处理中', color: 'orange' as const };
+    if (state === 'done') return { text: '完成', color: 'green' as const };
+    if (state === 'waiting') return { text: '等待中', color: 'blue' as const };
+    return { text: '', color: 'default' as const };
+  })();
 
   return (
     <Badge.Ribbon
-      text={isActive ? '运行中' : ''}
-      color={isActive ? 'green' : 'default'}
-      style={{ display: isActive ? 'block' : 'none' }}
+      text={badge.text}
+      color={badge.color}
+      style={{ display: badge.text ? 'block' : 'none' }}
     >
       <Card
         size="small"
@@ -40,16 +48,18 @@ const RunningCustomNode: React.FC<any> = ({ data, selected }) => {
             <Tag color={getNodeTypeColor(data.type)}>{data.typeLabel}</Tag>
           </div>
         }
-        className={`running-custom-node ${isActive ? 'active' : ''} ${isRunning ? 'system-running' : ''}`}
+        className={`running-custom-node ${state ? `state-${state}` : ''} ${isRunning ? 'system-running' : ''}`}
         style={{
           width: 200,
           minHeight: 120,
-          border: isActive ? '2px solid #52c41a' : '1px solid #d9d9d9',
-          boxShadow: isActive 
-            ? '0 0 15px rgba(82, 196, 26, 0.5)' 
-            : '0 2px 8px rgba(0,0,0,0.1)',
-          backgroundColor: isActive ? '#f6ffed' : '#ffffff',
-          animation: isActive ? 'pulse 2s infinite' : 'none',
+          border: state === 'done' ? '2px solid #52c41a' : state === 'processing' ? '2px solid #fa8c16' : state === 'waiting' ? '2px solid #1677ff' : '1px solid #d9d9d9',
+          boxShadow: state === 'processing' 
+            ? '0 0 12px rgba(250, 140, 22, 0.45)'
+            : state === 'done' 
+              ? '0 0 10px rgba(82, 196, 26, 0.35)'
+              : '0 2px 8px rgba(0,0,0,0.1)',
+          backgroundColor: state === 'done' ? '#f6ffed' : state === 'processing' ? '#fff7e6' : state === 'waiting' ? '#e6f4ff' : '#ffffff',
+          animation: state === 'processing' ? 'pulse 1.2s ease-in-out' : 'none',
         }}
         bodyStyle={{ padding: '8px 12px' }}
       >
@@ -78,7 +88,7 @@ const RunningCustomNode: React.FC<any> = ({ data, selected }) => {
           </div>
         )}
 
-        {isActive && (
+        {state === 'processing' && (
           <div className="activity-indicator">
             <div className="activity-dot"></div>
             <span>处理中...</span>
@@ -104,7 +114,19 @@ const RunningNodeCanvas: React.FC<RunningNodeCanvasProps> = ({
   edges,
   activeNodes,
   isRunning,
+  nodeStates = {},
 }) => {
+  function getTypeLabel(type: string): string {
+    const labels: Record<string, string> = {
+      agent: '智能体',
+      tool: '工具',
+      coordinator: '协调器',
+      input: '输入',
+      output: '输出',
+    };
+    return labels[type] || type;
+  }
+
   const flowNodes = useMemo(() => {
     return nodes.map((node): FlowNode => ({
       id: node.id,
@@ -114,10 +136,11 @@ const RunningNodeCanvas: React.FC<RunningNodeCanvasProps> = ({
         ...node,
         typeLabel: getTypeLabel(node.type),
         isActive: activeNodes.has(node.id),
+        state: nodeStates[node.id] as NodeState,
         isRunning,
       },
     }));
-  }, [nodes, activeNodes, isRunning]);
+  }, [nodes, activeNodes, isRunning, nodeStates]);
 
   const flowEdges = useMemo(() => {
     return edges.map((edge): FlowEdge => {
@@ -171,14 +194,6 @@ const RunningNodeCanvas: React.FC<RunningNodeCanvasProps> = ({
     runningCustom: RunningCustomNode,
   }), []);
 
-  const getTypeLabel = (type: string): string => {
-    const labels: Record<string, string> = {
-      agent: '智能体',
-      tool: '工具',
-      coordinator: '协调器',
-    };
-    return labels[type] || type;
-  };
 
   const activeNodeCount = activeNodes.size;
   const totalNodes = nodes.length;
@@ -189,24 +204,13 @@ const RunningNodeCanvas: React.FC<RunningNodeCanvasProps> = ({
         nodes={reactFlowNodes}
         edges={reactFlowEdges}
         nodeTypes={nodeTypes}
-        fitView
         attributionPosition="bottom-left"
         nodesDraggable={false}
         nodesConnectable={false}
         elementsSelectable={false}
       >
-        <Background 
-          color={isRunning ? '#f0f8f0' : '#f5f5f5'}
-        />
-        <Controls />
-        <MiniMap 
-          style={{
-            height: 120,
-            backgroundColor: isRunning ? '#f0f8f0' : '#f5f5f5',
-          }}
-          zoomable
-          pannable
-        />
+        {/* Background removed to reduce ResizeObserver activity in dev */}
+        {/* Controls and MiniMap removed to reduce ResizeObserver churn in dev */}
         <Panel position="top-left" className="running-canvas-info">
           <div className="status-panel">
             <div className="status-item">

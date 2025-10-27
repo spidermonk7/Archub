@@ -13,28 +13,13 @@
   transition: all 0.3s ease;
 }
 
-.running-custom-node.active {
-  animation: nodeActive 2s infinite;
-}
-
 .running-custom-node.system-running {
   border-color: #52c41a !important;
 }
 
-@keyframes nodeActive {
-  0% {
-    box-shadow: 0 0 15px rgba(82, 196, 26, 0.5);
-    transform: scale(1);
-  }
-  50% {
-    box-shadow: 0 0 25px rgba(82, 196, 26, 0.8);
-    transform: scale(1.02);
-  }
-  100% {
-    box-shadow: 0 0 15px rgba(82, 196, 26, 0.5);
-    transform: scale(1);
-  }
-}
+.running-custom-node.state-waiting { }
+.running-custom-node.state-processing { }
+.running-custom-node.state-done { }
 
 @keyframes pulse {
   0% {

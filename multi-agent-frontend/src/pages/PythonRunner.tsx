@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Layout, Card, Button, Input, Typography, Space, Select, message, List, Tag, Descriptions } from 'antd';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Layout, Card, Button, Input, Typography, Space, Select, message, Tag, Descriptions } from 'antd';
 import { ReloadOutlined, SendOutlined, ApiOutlined, HomeOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import './PythonRunner.css';
+import RunningNodeCanvas from '../components/RunningNodeCanvas';
+import WorkflowChat, { WorkflowEvent } from '../components/WorkflowChat';
 
 const { Header, Content } = Layout;
 const { Text } = Typography;
@@ -19,23 +21,23 @@ interface ConfigFile {
   error?: string;
 }
 
-interface ProcessingResult {
-  input: string;
-  output: string;
-  processingLog: string[];
-  timestamp: number;
-}
-
 const PythonRunner: React.FC = () => {
   const navigate = useNavigate();
   const [availableConfigs, setAvailableConfigs] = useState<ConfigFile[]>([]);
   const [selectedConfig, setSelectedConfig] = useState<string>('');
   const [currentConfig, setCurrentConfig] = useState<any>(null);
   const [userInput, setUserInput] = useState<string>('');
-  const [processingResults, setProcessingResults] = useState<ProcessingResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [apiStatus, setApiStatus] = useState<'unknown' | 'connected' | 'disconnected'>('unknown');
+  const [isLiveRunning, setIsLiveRunning] = useState(false);
+  const [liveLogs, setLiveLogs] = useState<string[]>([]);
+  const [activeNodes, setActiveNodes] = useState<Set<string>>(new Set());
+  const [nodeStates, setNodeStates] = useState<Record<string, 'waiting'|'processing'|'done'>>({});
+  const nodeStartAtRef = useRef<Record<string, number>>({});
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const [chatEvents, setChatEvents] = useState<WorkflowEvent[]>([]);
+  const lastProcessingEventIdRef = useRef<Record<string, string>>({});
+  const [finalOutput, setFinalOutput] = useState<string | null>(null);
 
   const API_BASE_URL = 'http://localhost:5000/api';
 
@@ -93,7 +95,7 @@ const PythonRunner: React.FC = () => {
       if (data.success) {
         setCurrentConfig(data.config);
         message.success(data.message);
-        setProcessingResults([]); // 清除之前的结果
+        setFinalOutput(null);
       } else {
         message.error('加载配置失败: ' + data.error);
       }
@@ -105,51 +107,236 @@ const PythonRunner: React.FC = () => {
     }
   }, []);
 
-  // 处理用户输入
-  const processUserInput = useCallback(async () => {
+  // 开始SSE流式运行
+  const startLiveRun = useCallback(() => {
     if (!userInput.trim()) {
       message.warning('请输入内容');
       return;
     }
-
     if (!currentConfig) {
       message.warning('请先加载配置文件');
       return;
     }
-
-    try {
-      setIsProcessing(true);
-      const response = await fetch(`${API_BASE_URL}/process-input`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ input: userInput }),
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        const newResult: ProcessingResult = {
-          input: data.input,
-          output: data.output,
-          processingLog: data.processingLog,
-          timestamp: data.timestamp,
-        };
-        
-        setProcessingResults(prev => [newResult, ...prev]);
-        setUserInput(''); // 清空输入框
-        message.success('处理完成');
-      } else {
-        message.error('处理失败: ' + data.error);
-      }
-    } catch (error) {
-      message.error('处理请求时发生错误');
-      console.error('处理错误:', error);
-    } finally {
-      setIsProcessing(false);
+    if (isLiveRunning) {
+      message.info('已有运行在进行中');
+      return;
     }
-  }, [userInput, currentConfig]);
+    try {
+      setLiveLogs([]);
+      setIsLiveRunning(true);
+      setFinalOutput(null);
+      // 关闭已有连接
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+      const encoded = encodeURIComponent(userInput.trim());
+      const es = new EventSource(`${API_BASE_URL.replace('/api','')}/api/run-sse?input=${encoded}`);
+      eventSourceRef.current = es;
+
+      const getNodeName = (id: string): string => {
+        const node = currentConfig?.nodes?.find((n: any) => n.id === id);
+        return node?.name || id;
+      };
+
+      const activateNode = (id: string, ttl = 2000) => {
+        setActiveNodes(prev => {
+          const ns = new Set(prev);
+          ns.add(id);
+          return ns;
+        });
+        window.setTimeout(() => {
+          setActiveNodes(prev => {
+            const ns = new Set(prev);
+            ns.delete(id);
+            return ns;
+          });
+        }, ttl);
+      };
+
+      es.onmessage = (ev) => {
+        // default event without explicit type
+        try {
+          const payload = JSON.parse(ev.data);
+          if (payload?.type) {
+            handleEvent(payload);
+          }
+        } catch {}
+      };
+
+      es.addEventListener('node.processing.started', (ev: MessageEvent) => {
+        try {
+          const e = JSON.parse(ev.data);
+          const nodeId = e?.node?.id;
+          const nodeName = e?.node?.name || getNodeName(nodeId);
+          activateNode(nodeId);
+          nodeStartAtRef.current[nodeId] = Date.now();
+          setNodeStates(prev => ({ ...prev, [nodeId]: 'processing' }));
+          const id = `${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+          lastProcessingEventIdRef.current[nodeId] = id;
+          setChatEvents(prev => ([
+            { id, type: 'processing', ts: Date.now(), nodeId, nodeName, status: 'processing' },
+            ...prev,
+          ]));
+          setLiveLogs(prev => [
+            `${nodeName} is processing...`,
+            ...prev,
+          ]);
+        } catch {}
+      });
+
+      es.addEventListener('node.processing.finished', (ev: MessageEvent) => {
+        try {
+          const e = JSON.parse(ev.data);
+          const nodeId = e?.node?.id;
+          const nodeName = e?.node?.name || getNodeName(nodeId);
+          // slight delay to show finish
+          activateNode(nodeId, 800);
+          setLiveLogs(prev => [
+            `[SUCCESS] ${nodeName} finished.`,
+            ...prev,
+          ]);
+        } catch {}
+      });
+
+      es.addEventListener('node.state.waiting', (ev: MessageEvent) => {
+        try {
+          const e = JSON.parse(ev.data);
+          const nodeId = e?.node?.id;
+          setNodeStates(prev => ({ ...prev, [nodeId]: 'waiting' }));
+        } catch {}
+      });
+
+      es.addEventListener('node.state.done', (ev: MessageEvent) => {
+        try {
+          const e = JSON.parse(ev.data);
+          const nodeId = e?.node?.id;
+          const startedAt = nodeStartAtRef.current[nodeId] || 0;
+          const elapsed = Date.now() - startedAt;
+          const minMs = 200; // minimal processing display time
+          const applyDone = () => setNodeStates(prev => ({ ...prev, [nodeId]: 'done' }));
+          if (elapsed < minMs) {
+            setTimeout(applyDone, minMs - elapsed);
+          } else {
+            applyDone();
+          }
+          // remove any pending processing bubble for this node
+          const lastId = lastProcessingEventIdRef.current[nodeId];
+          if (lastId) {
+            setChatEvents(prev => prev.filter(ev => ev.id !== lastId));
+            lastProcessingEventIdRef.current[nodeId] = '';
+          }
+          // Revert to waiting after short dwell if no new events
+          setTimeout(() => {
+            setNodeStates(prev => {
+              if (prev[nodeId] === 'done') {
+                return { ...prev, [nodeId]: 'waiting' } as typeof prev;
+              }
+              return prev;
+            });
+          }, 800);
+        } catch {}
+      });
+
+      es.addEventListener('edge.message.sent', (ev: MessageEvent) => {
+        try {
+          const e = JSON.parse(ev.data);
+          const src = e?.edge?.source;
+          const tgt = e?.edge?.target;
+          const preview = e?.messages?.[0]?.preview || '';
+          if (src) activateNode(src);
+          if (tgt) activateNode(tgt);
+          const a = getNodeName(src);
+          const b = getNodeName(tgt);
+          const id = `${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+          const content = e?.messages?.[0]?.content || preview;
+          setChatEvents(prev => {
+            // remove pending processing bubble for source if exists
+            const lastId = lastProcessingEventIdRef.current[src];
+            const base = lastId ? prev.filter(ev => ev.id !== lastId) : prev;
+            if (lastId) lastProcessingEventIdRef.current[src] = '';
+            return [
+              { id, type: 'message', ts: Date.now(), nodeId: src, nodeName: a, targetName: b, content },
+              ...base,
+            ];
+          });
+          setLiveLogs(prev => [
+            `${a} send a message to ${b}: ${preview}`,
+            ...prev,
+          ]);
+        } catch {}
+      });
+
+      es.addEventListener('team.run.started', () => {
+        // initialize nodes to waiting state
+        try {
+          const map: Record<string, 'waiting'> = {} as any;
+          (currentConfig?.nodes || []).forEach((n: any) => { map[n.id] = 'waiting'; });
+          setNodeStates(map);
+        } catch {}
+        setLiveLogs(prev => [
+          '[INFO] 团队开始运行',
+          ...prev,
+        ]);
+      });
+
+      es.addEventListener('team.run.finished', (ev: MessageEvent) => {
+        try {
+          const e = JSON.parse(ev.data);
+          const out = e?.output || '';
+          setFinalOutput(out);
+          // After finish, revert all nodes back to waiting after short delay
+          setTimeout(() => {
+            setNodeStates(prev => {
+              const next = { ...prev } as typeof prev;
+              Object.keys(next).forEach(k => { next[k] = 'waiting' as any; });
+              return next;
+            });
+          }, 1000);
+          setLiveLogs(prev => [
+            `[FINAL] 输出: ${out}`,
+            ...prev,
+          ]);
+          // stop running state
+          setIsLiveRunning(false);
+          // Optionally, leave final node states as-is
+        } catch {}
+        if (eventSourceRef.current) {
+          eventSourceRef.current.close();
+          eventSourceRef.current = null;
+        }
+      });
+
+      es.addEventListener('error', () => {
+        setLiveLogs(prev => [
+          '[ERROR] 运行中断或服务器错误',
+          ...prev,
+        ]);
+        setIsLiveRunning(false);
+        if (eventSourceRef.current) {
+          eventSourceRef.current.close();
+          eventSourceRef.current = null;
+        }
+      });
+
+      const handleEvent = (_e: any) => {
+        // placeholder for default events
+      };
+    } catch (err) {
+      setIsLiveRunning(false);
+      message.error('无法启动流式运行');
+    }
+  }, [API_BASE_URL, currentConfig, isLiveRunning, userInput]);
+
+  // 清理 EventSource on unmount
+  useEffect(() => {
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+    };
+  }, []);
 
   // 重置会话
   const resetSession = useCallback(async () => {
@@ -329,72 +516,48 @@ const PythonRunner: React.FC = () => {
                 value={userInput}
                 onChange={(e) => setUserInput(e.target.value)}
                 rows={4}
-                disabled={!currentConfig || isProcessing}
+                disabled={!currentConfig || isLiveRunning}
               />
               <Button
-                type="primary"
-                icon={<SendOutlined />}
-                onClick={processUserInput}
-                loading={isProcessing}
-                disabled={!currentConfig || !userInput.trim()}
-                size="large"
+                onClick={startLiveRun}
+                disabled={!currentConfig || !userInput.trim() || isLiveRunning}
+                loading={isLiveRunning}
               >
-                发送给团队处理
+                Live 运行并流式显示
               </Button>
             </Space>
           </Card>
 
-          {/* 处理结果区域 */}
+          {/* 工作流可视化 */}
+          {currentConfig && (
+            <Card title="工作流" className="workflow-section">
+          <div style={{ height: 420 }}>
+            <RunningNodeCanvas
+              nodes={currentConfig.nodes || []}
+              edges={currentConfig.edges || []}
+              activeNodes={activeNodes}
+              isRunning={isLiveRunning}
+              nodeStates={nodeStates}
+            />
+          </div>
+        </Card>
+      )}
+
+          {/* 工作流聊天气泡 */}
+          <Card title="工作流聊天" className="live-logs-section">
+            <WorkflowChat events={chatEvents} />
+          </Card>
+
+          {/* 处理结果区域（始终在页面底部） */}
           <Card title="处理结果" className="results-section">
-            {processingResults.length === 0 ? (
+            {finalOutput ? (
+              <div className="output-result">
+                <Text mark>{finalOutput}</Text>
+              </div>
+            ) : (
               <div className="empty-results">
                 <Text type="secondary">暂无处理结果</Text>
               </div>
-            ) : (
-              <List
-                dataSource={processingResults}
-                renderItem={(result, index) => (
-                  <List.Item key={index}>
-                    <Card
-                      size="small"
-                      style={{ width: '100%' }}
-                      title={
-                        <Space>
-                          <Text strong>#{processingResults.length - index}</Text>
-                          <Text type="secondary">
-                            {new Date(result.timestamp * 1000).toLocaleString()}
-                          </Text>
-                        </Space>
-                      }
-                    >
-                      <Space direction="vertical" style={{ width: '100%' }}>
-                        <div>
-                          <Text strong>输入: </Text>
-                          <Text>{result.input}</Text>
-                        </div>
-                        
-                        <div>
-                          <Text strong>处理日志: </Text>
-                          <div className="processing-log">
-                            {result.processingLog.map((log, logIndex) => (
-                              <div key={logIndex} className="log-item">
-                                {log}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        
-                        <div>
-                          <Text strong>输出结果: </Text>
-                          <div className="output-result">
-                            <Text mark>{result.output}</Text>
-                          </div>
-                        </div>
-                      </Space>
-                    </Card>
-                  </List.Item>
-                )}
-              />
             )}
           </Card>
         </div>

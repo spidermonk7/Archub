@@ -4,7 +4,7 @@ Flask API Server for Multi-Agent Team Runner
 前端和Python后端的HTTP通信接口，使用SQLite数据库存储团队配置
 """
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 import os
 import sys
@@ -14,6 +14,10 @@ from database import TeamDatabase
 # 把项目根目录加入搜索路径
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from backend_codes.runner import SimpleTeamRunner
+from backend_codes.telemetry import QueueEmitter
+import json
+import threading
+import queue
 
 app = Flask(__name__)
 CORS(app)  # 允许跨域请求
@@ -275,6 +279,80 @@ def process_input():
         print(f"❌ ERROR: Exception in process_input: {e}")
         import traceback
         traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/run-sse', methods=['GET'])
+def run_sse():
+    """Start a team run and stream telemetry events via Server-Sent Events (SSE)."""
+    global current_runner, current_config
+
+    try:
+        if not current_runner or not current_config:
+            return jsonify({
+                'success': False,
+                'error': 'No team loaded. Please load a team first.'
+            }), 400
+
+        user_input = request.args.get('input', '').strip()
+        if not user_input:
+            return jsonify({
+                'success': False,
+                'error': 'Input is required'
+            }), 400
+
+        q: queue.Queue = queue.Queue()
+        emitter = QueueEmitter(q)
+
+        def worker():
+            try:
+                current_runner.process_input_output_streaming(user_input, current_config, emit=emitter)
+            except Exception as e:
+                try:
+                    emitter({
+                        'type': 'error',
+                        'error': str(e),
+                    })
+                except Exception:
+                    pass
+
+        t = threading.Thread(target=worker, daemon=True)
+        t.start()
+
+        def generate():
+            finished = False
+            while not finished or t.is_alive():
+                try:
+                    event = q.get(timeout=0.1)
+                except Exception:
+                    # No item yet, check thread state and continue
+                    if not t.is_alive():
+                        break
+                    continue
+
+                try:
+                    evt_type = event.get('type', 'message')
+                    data = json.dumps(event, ensure_ascii=False)
+                    yield f"event: {evt_type}\n".encode('utf-8')
+                    yield f"data: {data}\n\n".encode('utf-8')
+                    if evt_type == 'team.run.finished':
+                        finished = True
+                except Exception:
+                    # If serialization fails, try to send a generic error
+                    fallback = {'type': 'error', 'error': 'serialization failure'}
+                    yield b"event: error\n"
+                    yield f"data: {json.dumps(fallback, ensure_ascii=False)}\n\n".encode('utf-8')
+
+        headers = {
+            'Cache-Control': 'no-cache',
+            'Content-Type': 'text/event-stream; charset=utf-8',
+            'Connection': 'keep-alive',
+            'X-Accel-Buffering': 'no',
+        }
+        return Response(generate(), headers=headers)
+    except Exception as e:
         return jsonify({
             'success': False,
             'error': str(e)
