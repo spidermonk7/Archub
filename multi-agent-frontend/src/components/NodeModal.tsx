@@ -37,6 +37,13 @@ const AVAILABLE_TOOLS = [
     description: '执行Python代码并返回结果',
     icon: '💻'
   },
+  {
+    value: 'custom_tool',
+    label: 'Create Your Own Tool',
+    description: '创建自定义工具以扩展智能体能力',
+    icon: '🔧',
+    isCustom: true
+  },
 ];
 
 // 定义输入数据类型
@@ -126,6 +133,12 @@ const NodeModal: React.FC<NodeModalProps> = ({ visible, onCancel, onSubmit }) =>
   }, [form]);
 
   const handleToolToggle = useCallback((toolValue: string) => {
+    // 如果点击的是自定义工具选项，暂时显示提示
+    if (toolValue === 'custom_tool') {
+      console.log('Create your own tool - Coming Soon!');
+      return;
+    }
+
     setSelectedTools(prev => {
       const newSelectedTools = prev.includes(toolValue)
         ? prev.filter(tool => tool !== toolValue)
@@ -493,12 +506,16 @@ const NodeModal: React.FC<NodeModalProps> = ({ visible, onCancel, onSubmit }) =>
                       <Card
                         size="small"
                         hoverable
-                        className={`tool-card ${selectedTools.includes(tool.value) ? 'tool-card-selected' : ''}`}
+                        className={`tool-card ${selectedTools.includes(tool.value) ? 'tool-card-selected' : ''} ${tool.isCustom ? 'custom-tool-card' : ''}`}
                         onClick={() => handleToolToggle(tool.value)}
                         style={{
                           cursor: 'pointer',
-                          border: selectedTools.includes(tool.value) ? '2px solid #1677ff' : '1px solid #d9d9d9',
-                          backgroundColor: selectedTools.includes(tool.value) ? '#f0f8ff' : '#ffffff',
+                          border: tool.isCustom 
+                            ? '2px dashed #52c41a' 
+                            : selectedTools.includes(tool.value) ? '2px solid #1677ff' : '1px solid #d9d9d9',
+                          backgroundColor: tool.isCustom
+                            ? '#f6ffed'
+                            : selectedTools.includes(tool.value) ? '#f0f8ff' : '#ffffff',
                           transition: 'all 0.3s ease'
                         }}
                       >
@@ -518,7 +535,7 @@ const NodeModal: React.FC<NodeModalProps> = ({ visible, onCancel, onSubmit }) =>
                               {tool.description}
                             </Text>
                           </div>
-                          {selectedTools.includes(tool.value) && (
+                          {!tool.isCustom && selectedTools.includes(tool.value) && (
                             <CheckOutlined 
                               style={{ 
                                 color: '#1677ff', 
@@ -526,6 +543,11 @@ const NodeModal: React.FC<NodeModalProps> = ({ visible, onCancel, onSubmit }) =>
                                 marginLeft: '8px'
                               }} 
                             />
+                          )}
+                          {tool.isCustom && (
+                            <Text type="secondary" style={{ fontSize: '12px', marginLeft: '8px' }}>
+                              即将推出
+                            </Text>
                           )}
                         </div>
                       </Card>
@@ -538,7 +560,7 @@ const NodeModal: React.FC<NodeModalProps> = ({ visible, onCancel, onSubmit }) =>
                       已选择 {selectedTools.length} 个工具: {selectedTools.map(tool => {
                         const toolInfo = AVAILABLE_TOOLS.find(t => t.value === tool);
                         return toolInfo?.label;
-                      }).join(', ')}
+                      }).filter(Boolean).join(', ')}
                     </Text>
                   </div>
                 )}
