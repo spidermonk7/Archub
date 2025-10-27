@@ -21,46 +21,46 @@ const HomePage: React.FC = () => {
   const actionCards = [
     {
       key: 'builder',
-      title: '构建多智能体团队',
-      subtitle: '从画布开始，定义节点、智能体和工作流逻辑',
+      title: 'Build Multi-Agent Teams',
+      subtitle: 'Start from the canvas to define nodes, agents, and workflow logic',
       icon: <PlusOutlined />,
-      cta: '立即创建',
+      cta: 'Create Now',
       onClick: handleBuildNewTeam,
       tone: 'violet',
     },
     {
       key: 'team-pool',
-      title: '精挑细选的团队集',
-      subtitle: '浏览最佳实践和现成模板，快速迭代你的系统',
+      title: 'Curated Team Library',
+      subtitle: 'Browse best practices and ready-made templates to iterate quickly',
       icon: <TeamOutlined />,
-      cta: '浏览团队',
+      cta: 'Browse Teams',
       onClick: handleExploreTeamPool,
       tone: 'cyan',
     },
     {
       key: 'agent-pool',
-      title: '智能体超级矩阵',
-      subtitle: '探索预构建的专家智能体，直接拖拽到你的图谱',
+      title: 'Agent Super Matrix',
+      subtitle: 'Explore prebuilt expert agents and drag them straight into your graph',
       icon: <RobotOutlined />,
-      cta: '查看智能体',
+      cta: 'View Agents',
       onClick: () => navigate('/agent-pool'),
       tone: 'blue',
     },
     {
       key: 'toolkit',
-      title: '扩展工具箱',
-      subtitle: '更多工作流工具和插件正在赶来，敬请期待',
+      title: 'Extended Toolkit',
+      subtitle: 'More workflow tools and plugins are on the way, stay tuned',
       icon: <ToolOutlined />,
-      cta: '即将上线',
+      cta: 'Coming Soon',
       disabled: true,
       tone: 'amber',
     },
   ];
 
   const signalCards = [
-    { label: '已编排智能体', value: '120+', accent: 'violet' },
-    { label: '标准流程模板', value: '45', accent: 'cyan' },
-    { label: '实时执行成功率', value: '98.6%', accent: 'emerald' },
+    { label: 'Agents Orchestrated', value: '120+', accent: 'violet' },
+    { label: 'Standard Flow Templates', value: '45', accent: 'cyan' },
+    { label: 'Real-time Execution Success', value: '98.6%', accent: 'emerald' },
   ];
 
   return (
@@ -74,17 +74,17 @@ const HomePage: React.FC = () => {
                 Agentic Workflow OS
               </Tag>
               <Title level={1} className="hero-title">
-                构建、调度与部署下一代多智能体团队
+                Build, orchestrate, and deploy next-gen multi-agent teams
               </Title>
               <Paragraph className="hero-subtitle">
-                可视化图谱构建 + 智能体市场 + 实时运行监控，让你的多智能体系统拥有类 Scale.com 的极致体验。
+                Visual graph builder + agent marketplace + real-time run monitoring deliver a Scale.com-like experience for your multi-agent system.
               </Paragraph>
               <Space size="middle" className="hero-actions" wrap>
                 <Button type="primary" size="large" icon={<RocketOutlined />} onClick={handleBuildNewTeam}>
-                  立即开始构建
+                  Start Building Now
                 </Button>
                 <Button size="large" onClick={handleExploreTeamPool} icon={<TeamOutlined />}>
-                  浏览优秀团队
+                  Explore Top Teams
                 </Button>
               </Space>
             </div>
@@ -93,8 +93,8 @@ const HomePage: React.FC = () => {
                 <div className="highlight-card">
                   <ExperimentOutlined className="highlight-icon" />
                   <div>
-                    <span className="highlight-label">实时演算引擎</span>
-                    <span className="highlight-value">自适应推理链</span>
+                    <span className="highlight-label">Real-time Execution Engine</span>
+                    <span className="highlight-value">Adaptive Reasoning Chains</span>
                   </div>
                 </div>
                 <div className="signal-grid">
@@ -146,10 +146,10 @@ const HomePage: React.FC = () => {
           <section className="footer-note">
             <Space direction="vertical" align="center" size="small">
               <Paragraph type="secondary">
-                选择一个入口，即刻开启你的多智能体旅程。
+                Pick an entry point and start your multi-agent journey instantly.
               </Paragraph>
               <Paragraph type="secondary" className="footer-sub">
-                构建流程即保存为可运行团队，随时部署至运行器。
+                Every flow saves as a runnable team, ready to deploy to the runner anytime.
               </Paragraph>
             </Space>
           </section>
