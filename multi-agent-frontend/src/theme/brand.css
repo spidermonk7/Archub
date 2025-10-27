@@ -1,0 +1,42 @@
+:root {
+  --bg-base: #0b1220;
+  --bg-elev: #0f172a;
+  --bg-glass: rgba(15, 23, 42, 0.72);
+  --fg: #e5e7eb;
+  --fg-muted: #94a3b8;
+  --border: rgba(148,163,184,0.14);
+  --card-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+  --accent: #7c3aed; /* violet */
+  --accent-2: #4f46e5; /* indigo */
+  --accent-soft: rgba(124, 58, 237, 0.25);
+}
+
+/* App background */
+body {
+  background:
+    radial-gradient(80% 60% at 20% 0%, rgba(124,58,237,0.18), transparent 40%),
+    radial-gradient(60% 50% at 80% 10%, rgba(59,130,246,0.12), transparent 45%),
+    linear-gradient(180deg, var(--bg-base) 0%, var(--bg-elev) 100%);
+  color: var(--fg);
+}
+
+.card-glass {
+  background: var(--bg-glass);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--card-shadow);
+}
+
+.btn-primary-gradient {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  border: none;
+  box-shadow: 0 8px 24px var(--accent-soft);
+}
+.btn-primary-gradient:hover {
+  background: linear-gradient(135deg, #6d28d9, #4338ca);
+  box-shadow: 0 12px 28px var(--accent-soft);
+  transform: translateY(-1px);
+}
+
+.container-xl { max-width: 1280px; margin: 0 auto; }
+

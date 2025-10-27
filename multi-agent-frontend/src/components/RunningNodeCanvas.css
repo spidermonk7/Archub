@@ -4,7 +4,7 @@
 }
 
 .running-node-canvas .react-flow {
-  background: #fafafa;
+  background: #000000;
   transition: all 0.3s ease;
 }
 
@@ -49,11 +49,11 @@
   gap: 6px;
   margin-top: 8px;
   padding: 4px 8px;
-  background: #f6ffed;
-  border: 1px solid #b7eb8f;
+  background: #0a0a0a;
+  border: 1px solid #1e1e1e;
   border-radius: 4px;
   font-size: 11px;
-  color: #52c41a;
+  color: #ffffff;
   font-weight: 500;
 }
 
@@ -136,6 +136,4 @@
 }
 
 /* 系统运行状态下的背景 */
-.running-node-canvas .react-flow.system-running {
-  background: linear-gradient(135deg, #f6ffed 0%, #f0f9ff 100%);
-}
+.running-node-canvas .react-flow.system-running { background: #000000; }

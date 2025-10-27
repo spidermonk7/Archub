@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Layout, Button, Card, Switch, message } from 'antd';
+import { Layout, Button, Card, Switch, message, Tag, Space } from 'antd';
 import { ArrowLeftOutlined, PlayCircleOutlined, PauseCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import RunningNodeCanvas from '../components/RunningNodeCanvas';
@@ -8,7 +8,7 @@ import { Node, Edge } from '../utils/types';
 import { runTeam, getGraphConfig } from '../utils/api';
 import './GraphRunner.css';
 
-const { Header, Content, Sider } = Layout;
+const { Content, Sider } = Layout;
 
 const GraphRunner: React.FC = () => {
   const navigate = useNavigate();
@@ -73,24 +73,25 @@ const GraphRunner: React.FC = () => {
     }
   };
 
-  const goBackToBuilder = () => {
+  const handleBackHome = () => {
     navigate('/');
   };
 
   return (
     <Layout className="graph-runner">
-      <Header className="header">
-        <div className="header-content">
-          <Button 
-            icon={<ArrowLeftOutlined />} 
-            onClick={goBackToBuilder}
-            type="text"
-            className="back-button"
-          >
-            返回构建器
-          </Button>
+      <section className="runner-hero glass">
+        <div className="runner-meta">
+          <Space size="small" align="center">
+            <Button icon={<ArrowLeftOutlined />} type="text" onClick={handleBackHome}>
+              返回首页
+            </Button>
+            <Tag className="runner-tag" bordered={false}>Execution Console</Tag>
+          </Space>
           <h1>Multi-Agent System Runner</h1>
-          <div className="controls">
+          <p>实时监控节点状态、事件流与日志输出，掌控你的多智能体执行过程。</p>
+        </div>
+        <div className="runner-controls">
+          <div className="control-row">
             <Button
               type="primary"
               icon={isRunning ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
@@ -99,12 +100,24 @@ const GraphRunner: React.FC = () => {
             >
               {isRunning ? '停止运行' : '开始运行'}
             </Button>
+            <Switch
+              checked={showTerminal}
+              onChange={setShowTerminal}
+              checkedChildren="日志"
+              unCheckedChildren="隐藏日志"
+            />
+          </div>
+          <div className="status-row">
+            <span className={`status-dot ${isRunning ? 'on' : 'off'}`} />
+            <span>{isRunning ? '运行中' : '等待启动'}</span>
+            <Tag>{nodes.length} 节点</Tag>
+            <Tag>{edges.length} 连接</Tag>
           </div>
         </div>
-      </Header>
-      
-      <Layout>
-        <Content className="main-content">
+      </section>
+
+      <Layout className="runner-body">
+        <Content className="runner-canvas glass-soft">
           <RunningNodeCanvas
             nodes={nodes}
             edges={edges}
@@ -114,17 +127,11 @@ const GraphRunner: React.FC = () => {
         </Content>
         
         {showTerminal && (
-          <Sider width={400} className="terminal-sider">
+          <Sider width={360} className="runner-terminal glass-soft">
             <Card
               title="运行日志"
               size="small"
-              extra={
-                <Switch
-                  checked={showTerminal}
-                  onChange={setShowTerminal}
-                  size="small"
-                />
-              }
+              bordered={false}
             >
               <TerminalOutput
                 ref={terminalRef}

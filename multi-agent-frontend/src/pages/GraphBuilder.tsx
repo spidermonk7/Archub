@@ -13,7 +13,7 @@ import { validateGraph, formatValidationErrors } from '../utils/graphValidation'
 import { saveNodeConfig, saveEdgeConfig, compileAndSaveGraph, loadFromLocalFile } from '../utils/api';
 import './GraphBuilder.css';
 
-const { Header, Content } = Layout;
+const { Content } = Layout;
 const { Title, Text } = Typography;
 
 const GraphBuilder: React.FC = () => {
@@ -231,6 +231,21 @@ const GraphBuilder: React.FC = () => {
     setIsNamingModalVisible(true);
   }, [nodes]);
 
+  const proceedWithCompilation = useCallback(async (name: string, description: string) => {
+    await compileAndSaveGraph(nodes, edges, name, description);
+
+    const teamInfo = {
+      name,
+      nodeCount: nodes.length,
+      edgeCount: edges.length,
+      compiledAt: new Date().toISOString(),
+    };
+
+    setCompiledTeamInfo(teamInfo);
+    setIsSuccessModalVisible(true);
+    message.success(`团队 "${name}" 创建成功！`);
+  }, [nodes, edges]);
+
   const handleTeamNaming = useCallback(async (name: string, description: string) => {
     setIsCompiling(true);
     setIsNamingModalVisible(false);
@@ -275,24 +290,7 @@ const GraphBuilder: React.FC = () => {
     } finally {
       setIsCompiling(false);
     }
-  }, [nodes, edges]);
-
-  const proceedWithCompilation = async (name: string, description: string) => {
-    // 验证通过，开始编译和保存
-    await compileAndSaveGraph(nodes, edges, name, description);
-    
-    // 创建团队信息用于显示成功对话框
-    const teamInfo = {
-      name: name,
-      nodeCount: nodes.length,
-      edgeCount: edges.length,
-      compiledAt: new Date().toISOString()
-    };
-    
-    setCompiledTeamInfo(teamInfo);
-    setIsSuccessModalVisible(true);
-    message.success(`团队 "${name}" 创建成功！`);
-  };
+  }, [nodes, edges, proceedWithCompilation]);
 
   const handleLoadGraph = useCallback(async () => {
     try {
@@ -372,47 +370,51 @@ const GraphBuilder: React.FC = () => {
 
   return (
     <Layout className="graph-builder">
-      <Header className="header">
-        <div className="header-content">
-          <h1>Multi-Agent System Builder</h1>
-          <Space>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setIsAddNodeModalVisible(true)}
-            >
-              新建节点
-            </Button>
-            <Button
-              icon={<LinkOutlined />}
-              onClick={handleStartEdgeCreation}
-              disabled={nodes.length < 2 || isEdgeCreationMode}
-            >
-              {isEdgeCreationMode ? '选择节点创建连接' : '建立连接'}
-            </Button>
-            <Button
-              onClick={() => setIsAttachPanelVisible(true)}
-            >
-              Attach Component
-            </Button>
-            <Button
-              icon={<FolderOpenOutlined />}
-              onClick={handleLoadGraph}
-            >
-              加载配置
-            </Button>
-            <Button
-              icon={<PlayCircleOutlined />}
-              onClick={handleCompileGraph}
-              loading={isCompiling}
-              disabled={nodes.length === 0}
-            >
-              编译图
-            </Button>
-          </Space>
+      <div className="builder-toolbar glass">
+        <div className="builder-toolbar__info">
+          <Title level={3}>Multi-Agent System Builder</Title>
+          <div className="builder-toolbar__meta">
+            <Text type="secondary">拖拽节点与连线，快速搭建你的智能体工作流。</Text>
+            {isEdgeCreationMode && (
+              <Tag color="purple" bordered={false} className="builder-toolbar__mode">
+                连接模式：请选择目标节点
+              </Tag>
+            )}
+          </div>
         </div>
-      </Header>
-      <Content className="content">
+        <Space wrap size="middle" className="builder-toolbar__actions">
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setIsAddNodeModalVisible(true)}
+          >
+            新建节点
+          </Button>
+          <Button
+            icon={<LinkOutlined />}
+            onClick={handleStartEdgeCreation}
+            disabled={nodes.length < 2 || isEdgeCreationMode}
+          >
+            建立连接
+          </Button>
+          {isEdgeCreationMode && (
+            <Button onClick={handleStopEdgeCreation}>取消连接</Button>
+          )}
+          <Button onClick={() => setIsAttachPanelVisible(true)}>组件挂载</Button>
+          <Button icon={<FolderOpenOutlined />} onClick={handleLoadGraph}>
+            加载配置
+          </Button>
+          <Button
+            icon={<PlayCircleOutlined />}
+            onClick={handleCompileGraph}
+            loading={isCompiling}
+            disabled={nodes.length === 0}
+          >
+            编译图
+          </Button>
+        </Space>
+      </div>
+      <Content className="builder-canvas glass-soft">
         <NodeCanvas
           nodes={nodesForCanvas as any}
           edges={edges}

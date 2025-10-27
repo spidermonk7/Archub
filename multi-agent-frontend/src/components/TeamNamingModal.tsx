@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { Modal, Form, Input, Button, Typography, Space } from 'antd';
 import { TeamOutlined, EditOutlined } from '@ant-design/icons';
 
@@ -27,7 +27,7 @@ edgeCount
 const [form] = Form.useForm();
 
 // 生成默认值
-const generateDefaults = () => {
+const generateDefaults = useCallback(() => {
     const now = new Date();
     const dateStr = now.toLocaleDateString('zh-CN').replace(/\//g, '-');
     const timeStr = now.toLocaleTimeString('zh-CN', { hour12: false
@@ -38,7 +38,7 @@ const generateDefaults = () => {
     description: defaultDescription || `一个包含 ${nodeCount} 个智能体和 
 ${edgeCount} 个连接的多功能团队`
     };
-};
+}, [defaultName, defaultDescription, nodeCount, edgeCount]);
 
 // 当弹窗打开时，设置默认值
 useEffect(() => {
@@ -46,7 +46,7 @@ useEffect(() => {
     const defaults = generateDefaults();
     form.setFieldsValue(defaults);
     }
-}, [visible, nodeCount, edgeCount, form]);
+}, [visible, form, generateDefaults]);
 
 const handleConfirm = () => {
     form.validateFields().then(values => {

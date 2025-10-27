@@ -6,6 +6,8 @@ import {
   useNodesState,
   useEdgesState,
   Panel,
+  Handle,
+  Position,
 } from '@xyflow/react';
 import { Card, Tag, Tooltip, Badge } from 'antd';
 import { Node, Edge } from '../utils/types';
@@ -20,10 +22,10 @@ interface RunningNodeCanvasProps {
   activeNodes: Set<string>;
   isRunning: boolean;
   nodeStates?: Record<string, NodeState>;
+  activeEdges?: Set<string>;
 }
 
 const RunningCustomNode: React.FC<any> = ({ data, selected }) => {
-  const isActive = data.isActive;
   const isRunning = data.isRunning;
   const state: 'waiting' | 'processing' | 'done' | undefined = data.state;
 
@@ -35,6 +37,13 @@ const RunningCustomNode: React.FC<any> = ({ data, selected }) => {
   })();
 
   return (
+    <>
+    <Handle
+      type="target"
+      position={Position.Left}
+      style={{ background: '#1677ff', opacity: data.type === 'input' ? 0.3 : 1 }}
+      isConnectable={data.type !== 'input'}
+    />
     <Badge.Ribbon
       text={badge.text}
       color={badge.color}
@@ -52,13 +61,10 @@ const RunningCustomNode: React.FC<any> = ({ data, selected }) => {
         style={{
           width: 200,
           minHeight: 120,
-          border: state === 'done' ? '2px solid #52c41a' : state === 'processing' ? '2px solid #fa8c16' : state === 'waiting' ? '2px solid #1677ff' : '1px solid #d9d9d9',
-          boxShadow: state === 'processing' 
-            ? '0 0 12px rgba(250, 140, 22, 0.45)'
-            : state === 'done' 
-              ? '0 0 10px rgba(82, 196, 26, 0.35)'
-              : '0 2px 8px rgba(0,0,0,0.1)',
-          backgroundColor: state === 'done' ? '#f6ffed' : state === 'processing' ? '#fff7e6' : state === 'waiting' ? '#e6f4ff' : '#ffffff',
+          border: state === 'done' ? '1px solid #1f3322' : state === 'processing' ? '1px solid #33260f' : state === 'waiting' ? '1px solid #13233a' : '1px solid #222222',
+          boxShadow: '0 4px 18px rgba(0,0,0,0.35)',
+          backgroundColor: state === 'done' ? '#0d1a0f' : state === 'processing' ? '#1a1405' : state === 'waiting' ? '#0a1220' : '#121212',
+          color: '#ffffff',
           animation: state === 'processing' ? 'pulse 1.2s ease-in-out' : 'none',
         }}
         bodyStyle={{ padding: '8px 12px' }}
@@ -96,6 +102,13 @@ const RunningCustomNode: React.FC<any> = ({ data, selected }) => {
         )}
       </Card>
     </Badge.Ribbon>
+    <Handle
+      type="source"
+      position={Position.Right}
+      style={{ background: '#1677ff', opacity: data.type === 'output' ? 0.3 : 1 }}
+      isConnectable={data.type !== 'output'}
+    />
+    </>
   );
 };
 
@@ -115,6 +128,7 @@ const RunningNodeCanvas: React.FC<RunningNodeCanvasProps> = ({
   activeNodes,
   isRunning,
   nodeStates = {},
+  activeEdges = new Set<string>(),
 }) => {
   function getTypeLabel(type: string): string {
     const labels: Record<string, string> = {
@@ -135,35 +149,33 @@ const RunningNodeCanvas: React.FC<RunningNodeCanvasProps> = ({
       data: {
         ...node,
         typeLabel: getTypeLabel(node.type),
-        isActive: activeNodes.has(node.id),
         state: nodeStates[node.id] as NodeState,
         isRunning,
       },
     }));
-  }, [nodes, activeNodes, isRunning, nodeStates]);
+  }, [nodes, isRunning, nodeStates]);
 
   const flowEdges = useMemo(() => {
     return edges.map((edge): FlowEdge => {
-      const sourceActive = activeNodes.has(edge.source);
-      const targetActive = activeNodes.has(edge.target);
-      const isEdgeActive = sourceActive || targetActive;
+      const edgeId = edge.id || `${edge.source}__to__${edge.target}`;
+      const isEdgeActive = activeEdges.has(edgeId);
 
       return {
-        id: edge.id,
+        id: edgeId,
         source: edge.source,
         target: edge.target,
         type: 'smoothstep',
         animated: isEdgeActive && isRunning,
         style: {
-          stroke: isEdgeActive 
+          stroke: isEdgeActive
             ? (edge.type === 'hard' ? '#52c41a' : '#faad14')
             : (edge.type === 'hard' ? '#1677ff' : '#52c41a'),
-          strokeWidth: isEdgeActive ? 3 : 2,
-          opacity: isEdgeActive ? 1 : 0.6,
+          strokeWidth: isEdgeActive ? 3.5 : 2,
+          opacity: isEdgeActive ? 1 : 0.7,
         },
         markerEnd: {
           type: 'arrowclosed',
-          color: isEdgeActive 
+          color: isEdgeActive
             ? (edge.type === 'hard' ? '#52c41a' : '#faad14')
             : (edge.type === 'hard' ? '#1677ff' : '#52c41a'),
         },
@@ -171,13 +183,13 @@ const RunningNodeCanvas: React.FC<RunningNodeCanvasProps> = ({
         labelStyle: {
           fontSize: 10,
           fontWeight: 'bold',
-          color: isEdgeActive 
+          color: isEdgeActive
             ? (edge.type === 'hard' ? '#52c41a' : '#faad14')
             : (edge.type === 'hard' ? '#1677ff' : '#52c41a'),
         },
       };
     });
-  }, [edges, activeNodes, isRunning]);
+  }, [edges, activeEdges, isRunning]);
 
   const [reactFlowNodes, setReactFlowNodes] = useNodesState(flowNodes);
   const [reactFlowEdges, setReactFlowEdges] = useEdgesState(flowEdges);

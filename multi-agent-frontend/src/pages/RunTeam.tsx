@@ -1,10 +1,10 @@
 import React from 'react';
-import { Layout, Card, Button, Space, Typography, Result } from 'antd';
+import { Layout, Card, Button, Space, Typography, Tag } from 'antd';
 import { ArrowLeftOutlined, BuildOutlined, TeamOutlined, PlayCircleOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import './RunTeam.css';
 
-const { Header, Content } = Layout;
+const { Content } = Layout;
 const { Title, Paragraph } = Typography;
 
 const RunTeam: React.FC = () => {
@@ -24,65 +24,82 @@ const RunTeam: React.FC = () => {
 
   return (
     <Layout className="run-team">
-      <Header className="run-team-header">
-        <div className="header-content">
-          <Space>
-            <Button 
-              icon={<ArrowLeftOutlined />} 
-              onClick={handleBackToHome}
-              type="text"
-              className="back-button"
-            >
-              返回首页
-            </Button>
-            <Title level={2} className="page-title">
-              <PlayCircleOutlined /> Run Team
-            </Title>
-          </Space>
+      <section className="run-team-hero glass">
+        <div className="hero-meta">
+          <Tag className="hero-tag" bordered={false}>Live Execution</Tag>
+          <Title level={2}>
+            <PlayCircleOutlined /> Run Team
+          </Title>
+          <Paragraph type="secondary">
+            高级运行控制台正在构建中。我们将在这里提供团队的执行监控、调度和分析能力。
+          </Paragraph>
         </div>
-      </Header>
+        <Space size="middle" wrap>
+          <Button icon={<ArrowLeftOutlined />} onClick={handleBackToHome}>
+            返回首页
+          </Button>
+          <Button icon={<TeamOutlined />} onClick={handleBackToPool}>
+            查看团队池
+          </Button>
+          <Button type="primary" icon={<BuildOutlined />} onClick={handleBackToBuilder}>
+            返回构建器
+          </Button>
+        </Space>
+      </section>
 
       <Content className="run-team-content">
-        <div className="content-container">
-          <Result
-            icon={<PlayCircleOutlined className="result-icon" />}
-            title="团队运行页面"
-            subTitle="这里将是智能体团队的运行环境。功能正在开发中..."
-            extra={
-              <Space direction="vertical" size="large" className="navigation-section">
-                <Paragraph>选择下一步操作：</Paragraph>
-                <Space size="middle" wrap>
-                  <Button 
-                    type="primary" 
-                    icon={<BuildOutlined />} 
-                    onClick={handleBackToBuilder}
-                    size="large"
-                  >
-                    返回构建器
-                  </Button>
-                  <Button 
-                    icon={<TeamOutlined />} 
-                    onClick={handleBackToPool}
-                    size="large"
-                  >
-                    查看团队池
-                  </Button>
-                </Space>
-              </Space>
-            }
-          />
+        <div className="run-team-shell">
+          <div className="placeholder-card glass">
+            <div className="placeholder-icon">
+              <PlayCircleOutlined />
+            </div>
+            <Title level={3}>运行器模块即将上线</Title>
+            <Paragraph type="secondary">
+              我们正在打造一个可以实时追踪消息流、智能体状态与性能曲线的运行面板。敬请期待以下能力：
+            </Paragraph>
+            <div className="feature-grid">
+              <div className="feature-chip">实时执行时间轴</div>
+              <div className="feature-chip">消息事件流</div>
+              <div className="feature-chip">节点性能指标</div>
+              <div className="feature-chip">中断与回滚控制</div>
+            </div>
+            <Space size="middle" wrap className="placeholder-actions">
+              <Button type="primary" icon={<BuildOutlined />} onClick={handleBackToBuilder}>
+                继续完善团队
+              </Button>
+              <Button icon={<TeamOutlined />} onClick={handleBackToPool}>
+                浏览现有团队
+              </Button>
+            </Space>
+          </div>
 
-          <div className="feature-preview">
-            <Card className="preview-card">
-              <Title level={4}>即将推出的功能</Title>
-              <ul className="feature-list">
-                <li>实时监控智能体状态</li>
-                <li>查看团队协作过程</li>
-                <li>控制团队执行流程</li>
-                <li>分析团队性能指标</li>
-                <li>调试和优化团队配置</li>
-              </ul>
-            </Card>
+          <div className="roadmap-section">
+            <Title level={4}>功能路线图</Title>
+            <div className="roadmap-grid">
+              {[
+                {
+                  title: '运行监控',
+                  points: ['节点 CPU 与上下文跟踪', '事件日志与消息重放']
+                },
+                {
+                  title: '调试工具',
+                  points: ['断点式运行控制', '节点单步调试与输出测试']
+                },
+                {
+                  title: '性能洞察',
+                  points: ['执行耗时分析', '瓶颈节点自动诊断']
+                }
+              ].map(item => (
+                <Card key={item.title} className="roadmap-card">
+                  <Title level={5}>{item.title}</Title>
+                  <ul>
+                    {item.points.map(point => (
+                      <li key={point}>{point}</li>
+                    ))}
+                  </ul>
+                </Card>
+              ))}
+            </div>
           </div>
         </div>
       </Content>

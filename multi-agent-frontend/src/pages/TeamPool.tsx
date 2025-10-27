@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Layout, Card, Button, Typography, Space, Tag, Empty, Spin, message } from 'antd';
+import { Layout, Card, Button, Typography, Space, Tag, Spin, message } from 'antd';
 import { ArrowLeftOutlined, TeamOutlined, CalendarOutlined, UserOutlined, LinkOutlined, RocketOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import './TeamPool.css';
 
-const { Header, Content } = Layout;
+const { Content } = Layout;
 const { Title, Text, Paragraph } = Typography;
 
 interface TeamInfo {
@@ -196,150 +196,135 @@ const TeamPool: React.FC = () => {
     return new Date(isoString).toLocaleString('zh-CN');
   };
 
-  const getTeamTypeColor = (nodeCount: number) => {
-    if (nodeCount <= 2) return 'green';
-    if (nodeCount <= 5) return 'blue';
-    return 'purple';
-  };
-
   const getTeamSize = (nodeCount: number) => {
     if (nodeCount <= 2) return '小型团队';
     if (nodeCount <= 5) return '中型团队';
     return '大型团队';
   };
 
+  const getTeamSizeClass = (nodeCount: number) => {
+    if (nodeCount <= 2) return 'small';
+    if (nodeCount <= 5) return 'medium';
+    return 'large';
+  };
   return (
     <Layout className="team-pool">
-      <Header className="team-pool-header">
-        <div className="header-content">
-          <Space>
-            <Button 
-              icon={<ArrowLeftOutlined />} 
-              onClick={handleBack}
-              type="text"
-              className="back-button"
-            >
-              返回首页
-            </Button>
-            <Title level={2} className="page-title">
+      <div className="team-pool-hero glass">
+        <div className="team-hero-inner">
+          <div className="team-hero-text">
+            <Tag className="hero-tag" bordered={false}>
+              Team Orchestrator
+            </Tag>
+            <Title level={2}>
               <TeamOutlined /> Agent Team Pool
             </Title>
-          </Space>
-        </div>
-      </Header>
-
-      <Content className="team-pool-content">
-        <div className="content-container">
-          <div className="pool-header">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <Title level={3}>已创建的智能体团队</Title>
-                <Paragraph type="secondary">
-                  管理和查看你的智能体团队配置。团队配置文件存储在 SourceFiles 目录中。
-                  {apiStatus === 'connected' ? (
-                    <Tag color="green" style={{ marginLeft: 8 }}>API连接正常</Tag>
-                  ) : (
-                    <Tag color="orange" style={{ marginLeft: 8 }}>使用本地缓存</Tag>
-                  )}
-                </Paragraph>
-              </div>
-              <Button 
-                icon={<ReloadOutlined />} 
+            <Paragraph type="secondary">
+              管理与部署你的多智能体编排。配置文件同步自 SourceFiles 目录。
+            </Paragraph>
+            <Space size="middle" wrap>
+              <Button icon={<ArrowLeftOutlined />} onClick={handleBack}>
+                返回首页
+              </Button>
+              <Button
+                icon={<ReloadOutlined />}
                 onClick={loadTeams}
                 loading={loading}
               >
-                刷新
+                刷新列表
               </Button>
+            </Space>
+          </div>
+          <div className="team-hero-status">
+            <Tag className={`api-pill ${apiStatus}`}>
+              {apiStatus === 'connected' ? 'API Connected' : 'Offline Cache'}
+            </Tag>
+            <div className="hero-stat">
+              <span className="stat-value">{teams.length}</span>
+              <span className="stat-label">团队数量</span>
             </div>
           </div>
+        </div>
+      </div>
 
+      <Content className="team-pool-content">
+        <div className="team-content-shell">
           {loading ? (
-            <div className="loading-container">
+            <div className="team-loading">
               <Spin size="large" />
-              <Text>正在加载团队信息...</Text>
+              <Text type="secondary">正在加载团队信息...</Text>
             </div>
           ) : teams.length === 0 ? (
-            <Empty
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description={
-                <span>
-                  暂无团队配置
-                  <br />
-                  <Text type="secondary">
-                    请先在 Builder 中创建团队，或从 SourceFiles 目录加载配置文件
-                  </Text>
-                </span>
-              }
-            >
-              <Button type="primary" onClick={() => navigate('/builder')}>
-                创建新团队
-              </Button>
-            </Empty>
+            <div className="empty-state glass">
+              <Title level={3}>暂未创建团队</Title>
+              <Paragraph type="secondary">
+                请先在 Builder 中设计流程，或从 SourceFiles 目录加载配置文件。
+              </Paragraph>
+              <Space size="middle">
+                <Button type="primary" onClick={() => navigate('/builder')}>
+                  创建新团队
+                </Button>
+                <Button onClick={loadTeams} icon={<ReloadOutlined />}>
+                  再试一次
+                </Button>
+              </Space>
+            </div>
           ) : (
             <div className="teams-grid">
-              {teams.map((team, index) => (
-                <Card
-                  key={index}
-                  className="team-card"
-                  hoverable
-                  actions={[
-                    <Button type="link" onClick={() => navigate('/builder')}>
-                      编辑团队
-                    </Button>,
-                    <Button 
-                      type="primary" 
-                      icon={<RocketOutlined />}
-                      onClick={() => handleRunTeam(team)}
-                    >
-                      Go Running This Team!
-                    </Button>
-                  ]}
-                >
-                  <div className="team-card-header">
-                    <Title level={4} className="team-name">
-                      {team.name}
-                    </Title>
-                    <Tag color={getTeamTypeColor(team.nodeCount)}>
-                      {getTeamSize(team.nodeCount)}
-                    </Tag>
+              {teams.map((team) => (
+                <Card key={team.id} className="team-card" hoverable>
+                  <div className="team-card__header">
+                    <div>
+                      <Title level={4}>{team.name}</Title>
+                      <Tag className={`size-pill ${getTeamSizeClass(team.nodeCount)}`}>
+                        {getTeamSize(team.nodeCount)}
+                      </Tag>
+                    </div>
+                    <Tag className="version-badge">v{team.version}</Tag>
                   </div>
 
-                  <div className="team-stats">
-                    <Space direction="vertical" size="small" className="stats-container">
-                      <div className="stat-item">
-                        <UserOutlined className="stat-icon" />
-                        <Text>{team.nodeCount} 个智能体节点</Text>
-                      </div>
-                      <div className="stat-item">
-                        <LinkOutlined className="stat-icon" />
-                        <Text>{team.edgeCount} 个连接</Text>
-                      </div>
-                      <div className="stat-item">
-                        <CalendarOutlined className="stat-icon" />
-                        <Text type="secondary">{formatDate(team.compiledAt)}</Text>
-                      </div>
-                    </Space>
-                  </div>
-
-                  <Paragraph className="team-description" ellipsis={{ rows: 2 }}>
+                  <Paragraph type="secondary" className="team-description" ellipsis={{ rows: 3 }}>
                     {team.description}
                   </Paragraph>
 
-                  <div className="team-version">
-                    <Tag>v{team.version}</Tag>
+                  <div className="team-card__stats">
+                    <div className="stat-chip">
+                      <UserOutlined />
+                      <span>{team.nodeCount} 个节点</span>
+                    </div>
+                    <div className="stat-chip">
+                      <LinkOutlined />
+                      <span>{team.edgeCount} 条连接</span>
+                    </div>
+                    <div className="stat-chip">
+                      <CalendarOutlined />
+                      <span>{formatDate(team.compiledAt)}</span>
+                    </div>
+                  </div>
+
+                  <div className="team-card__actions">
+                    <Button type="default" onClick={() => navigate('/builder')}>
+                      编辑团队
+                    </Button>
+                    <Button
+                      type="primary"
+                      icon={<RocketOutlined />}
+                      onClick={() => handleRunTeam(team)}
+                    >
+                      运行团队
+                    </Button>
                   </div>
                 </Card>
               ))}
             </div>
           )}
 
-          <div className="pool-actions">
+          <div className="team-pool-footer">
             <Space>
               <Button type="primary" onClick={() => navigate('/builder')}>
-                创建新团队
+                新建团队
               </Button>
               <Button onClick={() => navigate('/python-runner')}>
-                直接使用 Python Runner
+                前往 Python Runner
               </Button>
             </Space>
           </div>

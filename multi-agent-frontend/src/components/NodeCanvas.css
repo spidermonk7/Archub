@@ -4,7 +4,7 @@
 }
 
 .node-canvas .react-flow {
-  background: #fafafa;
+  background-color: transparent;
 }
 
 /* 自定义节点样式 */
@@ -70,7 +70,7 @@
 .node-name {
   font-weight: 600;
   font-size: 14px;
-  color: #262626;
+  color: #ffffff;
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -79,7 +79,7 @@
 
 .node-description {
   font-size: 12px;
-  color: #666;
+  color: #bfbfbf;
   line-height: 1.4;
   margin-bottom: 8px;
   overflow: hidden;
@@ -95,7 +95,7 @@
 
 .config-label {
   font-weight: 600;
-  color: #8c8c8c;
+  color: #9e9e9e;
   margin-bottom: 4px;
 }
 
@@ -106,12 +106,12 @@
 }
 
 .config-key {
-  color: #595959;
+  color: #cccccc;
   font-weight: 500;
 }
 
 .config-value {
-  color: #1677ff;
+  color: #7c9cff;
   font-weight: 400;
   max-width: 60px;
   overflow: hidden;
@@ -135,16 +135,17 @@
 
 /* 画布信息面板 */
 .canvas-info {
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(0, 0, 0, 0.6);
   border-radius: 8px;
   padding: 12px 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  border: 1px solid #222;
   backdrop-filter: blur(10px);
 }
 
 .canvas-info > div {
   font-size: 12px;
-  color: #666;
+  color: #bbbbbb;
   margin-bottom: 4px;
 }
 
@@ -168,12 +169,7 @@
   }
 }
 
-.react-flow__minimap {
-  background: #ffffff;
-  border: 1px solid #f0f0f0;
-  border-radius: 8px;
-  overflow: hidden;
-}
+.react-flow__minimap { background: #0a0a0a; border: 1px solid #222; border-radius: 8px; overflow: hidden; }
 
 /* 边的样式 */
 .react-flow__edge-path {
@@ -186,15 +182,7 @@
   filter: drop-shadow(0 0 6px rgba(22, 119, 255, 0.4));
 }
 
-.react-flow__edge-text {
-  font-size: 12px;
-  font-weight: bold;
-  background: rgba(255, 255, 255, 0.95);
-  padding: 3px 8px;
-  border-radius: 6px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(22, 119, 255, 0.2);
-}
+.react-flow__edge-text { font-size: 12px; font-weight: bold; background: rgba(0,0,0,0.7); color: #ffffff; padding: 3px 8px; border-radius: 6px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3); border: 1px solid #222; }
 
 /* 箭头标记样式 */
 .react-flow__arrowhead {

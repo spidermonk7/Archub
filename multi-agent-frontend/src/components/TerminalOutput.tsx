@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { Typography } from 'antd';
+import MarkdownRenderer from './MarkdownRenderer';
 import './TerminalOutput.css';
 
 const { Text } = Typography;
@@ -38,18 +39,6 @@ const TerminalOutput = forwardRef<HTMLDivElement, TerminalOutputProps>(
       return 'default';
     };
 
-    const getLogColor = (level: string): string => {
-      const colors: Record<string, string> = {
-        error: '#ff4d4f',
-        warning: '#faad14',
-        info: '#1677ff',
-        debug: '#8c8c8c',
-        success: '#52c41a',
-        default: '#000000',
-      };
-      return colors[level] || colors.default;
-    };
-
     return (
       <div className="terminal-output" ref={terminalRef}>
         <div className="terminal-header">
@@ -70,19 +59,12 @@ const TerminalOutput = forwardRef<HTMLDivElement, TerminalOutputProps>(
           
           {output.map((line, index) => {
             const level = getLogLevel(line);
-            const color = getLogColor(level);
-            
             return (
-              <div key={index} className="terminal-line">
-                <span className="terminal-timestamp">
-                  [{formatTimestamp(index)}]
-                </span>
-                <span 
-                  className={`terminal-text ${level}`}
-                  style={{ color }}
-                >
-                  {line}
-                </span>
+              <div key={index} className={`terminal-line level-${level}`}>
+                <span className="terminal-timestamp">[{formatTimestamp(index)}]</span>
+                <div className="terminal-text">
+                  <MarkdownRenderer content={line} className="terminal-markdown" />
+                </div>
               </div>
             );
           })}

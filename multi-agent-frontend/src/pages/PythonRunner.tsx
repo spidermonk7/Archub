@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Layout, Card, Button, Input, Typography, Space, Select, message, Tag, Descriptions } from 'antd';
-import { ReloadOutlined, SendOutlined, ApiOutlined, HomeOutlined } from '@ant-design/icons';
+import { ReloadOutlined, ApiOutlined, HomeOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import './PythonRunner.css';
 import RunningNodeCanvas from '../components/RunningNodeCanvas';
 import WorkflowChat, { WorkflowEvent } from '../components/WorkflowChat';
+import MarkdownRenderer from '../components/MarkdownRenderer';
 
-const { Header, Content } = Layout;
+const { Content } = Layout;
 const { Text } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
@@ -30,8 +31,8 @@ const PythonRunner: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [apiStatus, setApiStatus] = useState<'unknown' | 'connected' | 'disconnected'>('unknown');
   const [isLiveRunning, setIsLiveRunning] = useState(false);
-  const [liveLogs, setLiveLogs] = useState<string[]>([]);
   const [activeNodes, setActiveNodes] = useState<Set<string>>(new Set());
+  const [activeEdges, setActiveEdges] = useState<Set<string>>(new Set());
   const [nodeStates, setNodeStates] = useState<Record<string, 'waiting'|'processing'|'done'>>({});
   const nodeStartAtRef = useRef<Record<string, number>>({});
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -122,7 +123,6 @@ const PythonRunner: React.FC = () => {
       return;
     }
     try {
-      setLiveLogs([]);
       setIsLiveRunning(true);
       setFinalOutput(null);
       // 关闭已有连接
@@ -178,10 +178,6 @@ const PythonRunner: React.FC = () => {
             { id, type: 'processing', ts: Date.now(), nodeId, nodeName, status: 'processing' },
             ...prev,
           ]));
-          setLiveLogs(prev => [
-            `${nodeName} is processing...`,
-            ...prev,
-          ]);
         } catch {}
       });
 
@@ -189,13 +185,8 @@ const PythonRunner: React.FC = () => {
         try {
           const e = JSON.parse(ev.data);
           const nodeId = e?.node?.id;
-          const nodeName = e?.node?.name || getNodeName(nodeId);
           // slight delay to show finish
           activateNode(nodeId, 800);
-          setLiveLogs(prev => [
-            `[SUCCESS] ${nodeName} finished.`,
-            ...prev,
-          ]);
         } catch {}
       });
 
@@ -250,6 +241,20 @@ const PythonRunner: React.FC = () => {
           const b = getNodeName(tgt);
           const id = `${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
           const content = e?.messages?.[0]?.content || preview;
+          const edgeId = e?.edge?.id || `${src}__to__${tgt}`;
+          // activate edge animation briefly
+          setActiveEdges(prev => {
+            const ns = new Set(prev);
+            if (edgeId) ns.add(edgeId);
+            return ns;
+          });
+          setTimeout(() => {
+            setActiveEdges(prev => {
+              const ns = new Set(prev);
+              if (edgeId) ns.delete(edgeId);
+              return ns;
+            });
+          }, 1200);
           setChatEvents(prev => {
             // remove pending processing bubble for source if exists
             const lastId = lastProcessingEventIdRef.current[src];
@@ -260,10 +265,6 @@ const PythonRunner: React.FC = () => {
               ...base,
             ];
           });
-          setLiveLogs(prev => [
-            `${a} send a message to ${b}: ${preview}`,
-            ...prev,
-          ]);
         } catch {}
       });
 
@@ -274,10 +275,6 @@ const PythonRunner: React.FC = () => {
           (currentConfig?.nodes || []).forEach((n: any) => { map[n.id] = 'waiting'; });
           setNodeStates(map);
         } catch {}
-        setLiveLogs(prev => [
-          '[INFO] 团队开始运行',
-          ...prev,
-        ]);
       });
 
       es.addEventListener('team.run.finished', (ev: MessageEvent) => {
@@ -293,10 +290,6 @@ const PythonRunner: React.FC = () => {
               return next;
             });
           }, 1000);
-          setLiveLogs(prev => [
-            `[FINAL] 输出: ${out}`,
-            ...prev,
-          ]);
           // stop running state
           setIsLiveRunning(false);
           // Optionally, leave final node states as-is
@@ -308,10 +301,6 @@ const PythonRunner: React.FC = () => {
       });
 
       es.addEventListener('error', () => {
-        setLiveLogs(prev => [
-          '[ERROR] 运行中断或服务器错误',
-          ...prev,
-        ]);
         setIsLiveRunning(false);
         if (eventSourceRef.current) {
           eventSourceRef.current.close();
@@ -342,9 +331,17 @@ const PythonRunner: React.FC = () => {
   const resetSession = useCallback(async () => {
     try {
       await fetch(`${API_BASE_URL}/reset`, { method: 'POST' });
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+      setIsLiveRunning(false);
       setCurrentConfig(null);
       setSelectedConfig('');
-      setProcessingResults([]);
+      setFinalOutput(null);
+      setChatEvents([]);
+      setActiveNodes(new Set());
+      setNodeStates({});
       setUserInput('');
       message.success('会话已重置');
     } catch (error) {
@@ -421,146 +418,144 @@ const PythonRunner: React.FC = () => {
 
   return (
     <Layout className="python-runner">
-      <Header className="header">
+      <div className="runner-header glass">
         <div className="header-content">
-          <h1>Python Team Runner</h1>
-          <Space>
+          <div className="brand">
+            <h1>Python Team Runner</h1>
+            <div className="sub">高级多智能体工作流 · 实时可视化</div>
+          </div>
+          <Space size={12} wrap>
             <Tag color={getApiStatusColor()} icon={<ApiOutlined />}>
               API状态: {getApiStatusText()}
             </Tag>
-            <Button
-              icon={<ReloadOutlined />}
-              onClick={() => {
-                checkApiConnection();
-                fetchAvailableConfigs();
-              }}
-            >
+            <Button icon={<ReloadOutlined />} onClick={() => { checkApiConnection(); fetchAvailableConfigs(); }}>
               刷新
             </Button>
-            <Button
-              icon={<HomeOutlined />}
-              onClick={() => navigate('/')}
-            >
-              返回首页
-            </Button>
+            <Button icon={<HomeOutlined />} onClick={() => navigate('/')}>返回首页</Button>
           </Space>
         </div>
-      </Header>
-      
-      <Content className="content">
-        <div className="runner-container">
-          {/* 配置选择区域 */}
-          <Card title="选择团队配置" className="config-section">
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Select
-                style={{ width: '100%' }}
-                placeholder="选择要运行的团队配置文件"
-                value={selectedConfig}
-                onChange={handleConfigSelect}
-                loading={isLoading}
-                disabled={apiStatus !== 'connected'}
-              >
-                {availableConfigs.map(config => (
-                  <Option key={config.filename} value={config.filename}>
-                    <div>
-                      <strong>{config.name}</strong>
-                      {config.error ? (
-                        <Text type="danger"> (加载错误)</Text>
-                      ) : (
-                        <Text type="secondary">
-                          {config.nodeCount ? ` - ${config.nodeCount}个节点, ${config.edgeCount}个连接` : ''}
-                        </Text>
-                      )}
-                    </div>
-                  </Option>
-                ))}
-              </Select>
-              
-              {currentConfig && (
-                <Descriptions
-                  title="当前团队信息"
-                  bordered
-                  size="small"
-                  column={2}
-                >
-                  <Descriptions.Item label="团队名称">
-                    {currentConfig.metadata?.name || '未命名'}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="版本">
-                    {currentConfig.metadata?.version || '1.0'}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="节点数量">
-                    <Tag color="blue">{currentConfig.nodes?.length || 0}</Tag>
-                  </Descriptions.Item>
-                  <Descriptions.Item label="连接数量">
-                    <Tag color="green">{currentConfig.edges?.length || 0}</Tag>
-                  </Descriptions.Item>
-                </Descriptions>
-              )}
-              
-              <Button
-                danger
-                onClick={resetSession}
-                disabled={!currentConfig}
-              >
-                重置会话
-              </Button>
-            </Space>
-          </Card>
+      </div>
 
-          {/* 输入处理区域 */}
-          <Card title="输入处理" className="input-section">
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <TextArea
-                placeholder="输入你的需求，团队将为你处理..."
-                value={userInput}
-                onChange={(e) => setUserInput(e.target.value)}
-                rows={4}
-                disabled={!currentConfig || isLiveRunning}
-              />
-              <Button
-                onClick={startLiveRun}
-                disabled={!currentConfig || !userInput.trim() || isLiveRunning}
-                loading={isLiveRunning}
-              >
-                Live 运行并流式显示
-              </Button>
-            </Space>
-          </Card>
-
-          {/* 工作流可视化 */}
-          {currentConfig && (
-            <Card title="工作流" className="workflow-section">
-          <div style={{ height: 420 }}>
-            <RunningNodeCanvas
-              nodes={currentConfig.nodes || []}
-              edges={currentConfig.edges || []}
-              activeNodes={activeNodes}
-              isRunning={isLiveRunning}
-              nodeStates={nodeStates}
-            />
-          </div>
-        </Card>
-      )}
-
-          {/* 工作流聊天气泡 */}
-          <Card title="工作流聊天" className="live-logs-section">
-            <WorkflowChat events={chatEvents} />
-          </Card>
-
-          {/* 处理结果区域（始终在页面底部） */}
-          <Card title="处理结果" className="results-section">
-            {finalOutput ? (
-              <div className="output-result">
-                <Text mark>{finalOutput}</Text>
-              </div>
+      <Content className="runner-content">
+        <section className="config-bar glass-soft">
+          <div className="config-bar__inputs">
+            <Select
+              style={{ width: '100%' }}
+              placeholder="选择要运行的团队配置文件"
+              value={selectedConfig}
+              onChange={handleConfigSelect}
+              loading={isLoading}
+              disabled={apiStatus !== 'connected'}
+            >
+              {availableConfigs.map(config => (
+                <Option key={config.filename} value={config.filename}>
+                  <div>
+                    <strong>{config.name}</strong>
+                    {config.error ? (
+                      <Text type="danger"> (加载错误)</Text>
+                    ) : (
+                      <Text type="secondary">
+                        {config.nodeCount ? ` - ${config.nodeCount}个节点, ${config.edgeCount}个连接` : ''}
+                      </Text>
+                    )}
+                  </div>
+                </Option>
+              ))}
+            </Select>
+            {currentConfig ? (
+              <Descriptions bordered size="small" column={2} className="team-meta">
+                <Descriptions.Item label="团队名称">
+                  {currentConfig.metadata?.name || '未命名'}
+                </Descriptions.Item>
+                <Descriptions.Item label="版本">
+                  {currentConfig.metadata?.version || '1.0'}
+                </Descriptions.Item>
+                <Descriptions.Item label="节点数量">
+                  <Tag color="blue">{currentConfig.nodes?.length || 0}</Tag>
+                </Descriptions.Item>
+                <Descriptions.Item label="连接数量">
+                  <Tag color="green">{currentConfig.edges?.length || 0}</Tag>
+                </Descriptions.Item>
+              </Descriptions>
             ) : (
-              <div className="empty-results">
-                <Text type="secondary">暂无处理结果</Text>
-              </div>
+              <Text type="secondary">请选择或加载一个团队配置以开始运行。</Text>
             )}
-          </Card>
+          </div>
+          <Space size="middle" wrap className="config-bar__actions">
+            <Button danger onClick={resetSession} disabled={!currentConfig}>重置会话</Button>
+          </Space>
+        </section>
+
+        <div className="runner-layout">
+          <div className="workflow-stage">
+            <div className="workflow-window">
+              <div className="workflow-window__chrome">
+                <span className="chrome-dot red"></span>
+                <span className="chrome-dot yellow"></span>
+                <span className="chrome-dot green"></span>
+                <span className="chrome-title">Workflow Preview</span>
+              </div>
+              <div className="workflow-window__canvas">
+                <RunningNodeCanvas
+                  nodes={currentConfig?.nodes || []}
+                  edges={currentConfig?.edges || []}
+                  activeNodes={activeNodes}
+                  isRunning={isLiveRunning}
+                  nodeStates={nodeStates}
+                  activeEdges={activeEdges}
+                />
+                <div className="workflow-grid-overlay" aria-hidden />
+              </div>
+            </div>
+            <div className="workflow-status">
+              <div>节点: <b>{currentConfig?.nodes?.length || 0}</b></div>
+              <div>连接: <b>{currentConfig?.edges?.length || 0}</b></div>
+              <div>
+                状态:&nbsp;
+                <Tag color={isLiveRunning ? 'green' : 'default'}>
+                  {isLiveRunning ? '运行中' : '待机'}
+                </Tag>
+              </div>
+            </div>
+          </div>
+
+          <aside className="runner-sidebar">
+            <Card title="输入处理" className="input-section">
+              <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                <TextArea
+                  placeholder="输入你的需求，团队将为你处理..."
+                  value={userInput}
+                  onChange={(e) => setUserInput(e.target.value)}
+                  rows={5}
+                  disabled={!currentConfig || isLiveRunning}
+                />
+                <Button
+                  onClick={startLiveRun}
+                  disabled={!currentConfig || !userInput.trim() || isLiveRunning}
+                  loading={isLiveRunning}
+                  type="primary"
+                  block
+                >
+                  Live 运行并流式显示
+                </Button>
+              </Space>
+            </Card>
+
+            <Card title="工作流日志" className="live-logs-section">
+              <WorkflowChat events={chatEvents} />
+            </Card>
+          </aside>
         </div>
+
+        <Card title="处理结果" className="results-card glass-soft">
+          {finalOutput ? (
+            <MarkdownRenderer content={finalOutput} className="results-markdown" />
+          ) : (
+            <div className="empty-results">
+              <Text type="secondary">暂无处理结果</Text>
+            </div>
+          )}
+        </Card>
       </Content>
     </Layout>
   );

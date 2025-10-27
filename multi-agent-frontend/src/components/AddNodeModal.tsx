@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Modal, Steps, Button, Space, Card, Row, Col, Typography, Tag, Divider, Empty } from 'antd';
-import { PlusOutlined, RobotOutlined, BuildOutlined, StarOutlined } from '@ant-design/icons';
+import { PlusOutlined, RobotOutlined, BuildOutlined } from '@ant-design/icons';
 import { Node } from '../utils/types';
 import { AgentPoolItem, loadAgentPool, organizeAgentsByCategory } from '../utils/agentPool';
 import NodeModal from './NodeModal'; // 原有的Agent创建逻辑
@@ -20,9 +20,9 @@ const AddNodeModal: React.FC<AddNodeModalProps> = ({ visible, onCancel, onSubmit
   const [currentStep, setCurrentStep] = useState<StepType>('select-type');
   const [selectedNodeType, setSelectedNodeType] = useState<NodeTypeSelection>(null);
   const [agentPool, setAgentPool] = useState<AgentPoolItem[]>([]);
-  const [selectedAgent, setSelectedAgent] = useState<AgentPoolItem | null>(null);
+  // removed selectedAgent (unused)
   const [isCustomModalVisible, setIsCustomModalVisible] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
 
   // 加载Agent Pool
   useEffect(() => {
@@ -46,7 +46,7 @@ const AddNodeModal: React.FC<AddNodeModalProps> = ({ visible, onCancel, onSubmit
   const handleReset = useCallback(() => {
     setCurrentStep('select-type');
     setSelectedNodeType(null);
-    setSelectedAgent(null);
+    // no-op
     setIsCustomModalVisible(false);
   }, []);
 

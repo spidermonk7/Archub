@@ -84,44 +84,103 @@
 
 .terminal-line {
   display: flex;
-  margin-bottom: 2px;
+  margin-bottom: 6px;
   align-items: flex-start;
+  gap: 12px;
   word-wrap: break-word;
 }
 
 .terminal-timestamp {
   color: #8c8c8c;
-  margin-right: 8px;
   flex-shrink: 0;
   font-size: 10px;
+  padding-top: 3px;
 }
 
 .terminal-text {
   flex: 1;
   word-break: break-word;
+  color: #e2e8f0;
+  position: relative;
+  padding-left: 12px;
 }
 
-.terminal-text.error {
-  color: #ff4d4f;
-  font-weight: 500;
+.terminal-text::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4d4d4d;
 }
 
-.terminal-text.warning {
-  color: #faad14;
-  font-weight: 500;
+.terminal-text .terminal-markdown {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.terminal-text.info {
-  color: #1677ff;
+.terminal-text .terminal-markdown p {
+  margin: 0;
 }
 
-.terminal-text.debug {
-  color: #8c8c8c;
+.terminal-text .terminal-markdown code {
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 12px;
 }
 
-.terminal-text.success {
-  color: #52c41a;
-  font-weight: 500;
+.terminal-text .terminal-markdown pre {
+  background: linear-gradient(135deg, #1a1a1a 0%, #262626 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(99, 102, 241, 0.18);
+  padding: 14px 16px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.terminal-line.level-error .terminal-text {
+  color: #ff6b6b;
+}
+
+.terminal-line.level-error .terminal-text::before {
+  background: #ff4d4f;
+}
+
+.terminal-line.level-warning .terminal-text {
+  color: #facc15;
+}
+
+.terminal-line.level-warning .terminal-text::before {
+  background: #faad14;
+}
+
+.terminal-line.level-info .terminal-text {
+  color: #93c5fd;
+}
+
+.terminal-line.level-info .terminal-text::before {
+  background: #1677ff;
+}
+
+.terminal-line.level-success .terminal-text {
+  color: #4ade80;
+}
+
+.terminal-line.level-success .terminal-text::before {
+  background: #52c41a;
+}
+
+.terminal-line.level-debug .terminal-text {
+  color: #94a3b8;
+}
+
+.terminal-line.level-debug .terminal-text::before {
+  background: #8c8c8c;
 }
 
 .terminal-cursor {
@@ -147,9 +206,9 @@
 /* 终端输出的特殊效果 */
 .terminal-line:hover {
   background: rgba(255, 255, 255, 0.05);
-  padding: 0 4px;
-  margin: 0 -4px 2px -4px;
-  border-radius: 4px;
+  border-radius: 6px;
+  padding: 4px 8px;
+  margin: -4px -8px 2px -8px;
 }
 
 /* 日志级别指示器 */

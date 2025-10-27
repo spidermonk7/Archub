@@ -1,5 +1,10 @@
 import React from 'react';
 import { Spin, Tag } from 'antd';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import './WorkflowChat.css';
 
 export type ChatEventType = 'system' | 'processing' | 'message';
@@ -70,7 +75,36 @@ const WorkflowChat: React.FC<WorkflowChatProps> = ({ events }) => {
                 <span className="name">{e.nodeName}</span>
                 {e.targetName && <span className="arrow">→ {e.targetName}</span>}
               </div>
-              <div className="content">{e.content}</div>
+              <div className="content markdown">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm, remarkMath]}
+                  rehypePlugins={[rehypeKatex]}
+                  components={{
+                    code({ node, inline, className, children, ...props }: any) {
+                      const match = /language-(\w+)/.exec(className || '');
+                      const language = match ? match[1] : 'text';
+                      
+                      if (!inline) {
+                        return (
+                          <pre className="code-block" {...props}>
+                            <code className={`language-${language}`}>
+                              {String(children).replace(/\n$/, '')}
+                            </code>
+                          </pre>
+                        );
+                      }
+                      
+                      return (
+                        <code className={className} {...props}>
+                          {children}
+                        </code>
+                      );
+                    },
+                  }}
+                >
+                  {e.content || ''}
+                </ReactMarkdown>
+              </div>
             </div>
           </div>
         );

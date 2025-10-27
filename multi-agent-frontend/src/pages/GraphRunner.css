@@ -1,82 +1,167 @@
 .graph-runner {
-  height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: calc(100vh - 64px);
+  background: transparent;
+  padding-bottom: 72px;
 }
 
-.graph-runner .header {
-  background: #ffffff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  padding: 0 24px;
-  height: 64px;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.graph-runner .header-content {
+.runner-hero {
+  width: min(1180px, 92vw);
+  margin: 30px auto;
+  padding: 28px 36px;
+  border-radius: 28px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: radial-gradient(circle at 12% 10%, rgba(124, 58, 237, 0.22), transparent 60%),
+    radial-gradient(circle at 88% 0%, rgba(56, 189, 248, 0.18), transparent 60%),
+    rgba(12, 16, 28, 0.82);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
+  flex-wrap: wrap;
+  gap: 24px;
+  box-shadow: 0 30px 80px rgba(10, 14, 25, 0.65);
 }
 
-.graph-runner .header-content h1 {
-  margin: 0;
-  color: #764ba2;
-  font-size: 20px;
-  font-weight: 600;
-}
-
-.graph-runner .back-button {
-  color: #666;
-  font-weight: 500;
-}
-
-.graph-runner .back-button:hover {
-  color: #1677ff;
-  background: #f0f8ff;
-}
-
-.graph-runner .controls {
+.runner-meta {
   display: flex;
-  gap: 12px;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 540px;
+}
+
+.runner-meta h1 {
+  margin: 0;
+  font-size: 1.9rem;
+  color: #f8fafc;
+  letter-spacing: -0.01em;
+}
+
+.runner-meta p {
+  margin: 0;
+  color: rgba(198, 203, 218, 0.75);
+  line-height: 1.5;
+}
+
+.runner-tag {
+  border-radius: 999px !important;
+  background: rgba(15, 23, 42, 0.65) !important;
+  color: rgba(226, 232, 240, 0.82) !important;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+}
+
+.runner-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+.runner-controls .control-row {
+  display: flex;
   align-items: center;
+  gap: 16px;
 }
 
-.graph-runner .main-content {
-  padding: 0;
-  background: #fafafa;
+.runner-controls .status-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: rgba(226, 232, 240, 0.78);
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  box-shadow: 0 0 12px rgba(124, 58, 237, 0.6);
+}
+
+.status-dot.on {
+  background: rgba(124, 58, 237, 0.85);
+}
+
+.status-dot.off {
+  background: rgba(148, 163, 184, 0.5);
+  box-shadow: none;
+}
+
+.runner-controls .ant-switch {
+  background: rgba(148, 163, 184, 0.22);
+}
+
+.runner-controls .ant-switch-checked {
+  background: rgba(124, 58, 237, 0.7);
+}
+
+.runner-controls .ant-btn-primary {
+  min-width: 160px;
+  height: 48px;
+  border-radius: 16px;
+  font-size: 1rem;
+  box-shadow: 0 18px 45px rgba(124, 58, 237, 0.35);
+}
+
+.runner-body {
+  width: min(1180px, 92vw);
+  margin: 0 auto;
+  border-radius: 26px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(12, 16, 28, 0.65);
   overflow: hidden;
+  box-shadow: 0 30px 80px rgba(10, 14, 25, 0.6);
 }
 
-.graph-runner .terminal-sider {
-  background: #ffffff;
-  border-left: 1px solid #f0f0f0;
+.runner-canvas {
+  padding: 0;
+  min-height: 520px;
+  border-right: 1px solid rgba(148, 163, 184, 0.08);
 }
 
-.graph-runner .terminal-sider .ant-card {
+.runner-terminal {
+  border-left: 1px solid rgba(148, 163, 184, 0.08);
+  background: rgba(12, 16, 28, 0.8);
+}
+
+.runner-terminal .ant-card {
   height: 100%;
-  border: none;
-  border-radius: 0;
+  background: transparent;
+  color: #f8fafc;
 }
 
-.graph-runner .terminal-sider .ant-card-body {
-  padding: 12px;
+.runner-terminal .ant-card-head {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.runner-terminal .ant-card-body {
   height: calc(100% - 57px);
   overflow: hidden;
+  padding: 12px;
 }
 
-/* 运行按钮特殊样式 */
-.graph-runner .ant-btn-primary {
-  background: linear-gradient(135deg, #52c41a 0%, #95de64 100%);
-  border: none;
-  height: 44px;
-  font-size: 16px;
-  font-weight: 600;
+@media (max-width: 1024px) {
+  .runner-body {
+    flex-direction: column;
+  }
+
+  .runner-canvas {
+    border-right: none;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+  }
 }
 
-.graph-runner .ant-btn-primary:hover {
-  background: linear-gradient(135deg, #389e0d 0%, #52c41a 100%);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(82, 196, 26, 0.3);
+@media (max-width: 768px) {
+  .runner-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .runner-controls {
+    align-items: flex-start;
+  }
+
+  .runner-controls .control-row {
+    width: 100%;
+    justify-content: space-between;
+  }
 }

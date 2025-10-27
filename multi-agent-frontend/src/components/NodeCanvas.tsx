@@ -99,29 +99,24 @@ const CustomNode: React.FC<any> = ({ data, selected }) => {
         style={{
           width: 200,
           minHeight: 120,
-          border: isCreatingEdgeSource
-            ? '2px solid #52c41a'
-            : isCreatingEdgeTarget
-            ? '2px solid #ff4d4f'
-            : isCreatingEdgeCandidate
-            ? '2px solid #1677ff'
-            : selected
-            ? '2px solid #1677ff'
-            : isSpecialNode
-            ? '2px solid #52c41a'
-            : '1px solid #d9d9d9',
-          boxShadow: isCreatingEdgeSource
-            ? '0 0 0 3px rgba(82, 196, 26, 0.3)'
-            : isCreatingEdgeTarget
-            ? '0 0 0 3px rgba(255, 77, 79, 0.3)'
-            : isCreatingEdgeCandidate
-            ? '0 0 0 3px rgba(22, 119, 255, 0.3)'
-            : selected
-            ? '0 4px 12px rgba(22, 119, 255, 0.3)'
-            : isSpecialNode
-            ? '0 4px 12px rgba(82, 196, 26, 0.3)'
-            : '0 2px 8px rgba(0,0,0,0.1)',
+          border: (() => {
+            if (isCreatingEdgeSource) return '1px solid rgba(82, 196, 26, 0.65)';
+            if (isCreatingEdgeTarget) return '1px solid rgba(255, 77, 79, 0.65)';
+            if (isCreatingEdgeCandidate) return '1px solid rgba(22, 119, 255, 0.65)';
+            if (selected) return '1px solid rgba(22, 119, 255, 0.6)';
+            if (isSpecialNode) return '1px solid rgba(82, 196, 26, 0.5)';
+            return '1px solid rgba(148, 163, 184, 0.18)';
+          })(),
+          boxShadow: (() => {
+            if (isCreatingEdgeSource) return '0 12px 34px rgba(82, 196, 26, 0.28)';
+            if (isCreatingEdgeTarget) return '0 12px 34px rgba(255, 77, 79, 0.28)';
+            if (isCreatingEdgeCandidate) return '0 12px 34px rgba(22, 119, 255, 0.28)';
+            if (selected) return '0 20px 46px rgba(22, 119, 255, 0.32)';
+            return '0 20px 52px rgba(12, 18, 34, 0.38)';
+          })(),
           cursor: isCreatingEdgeCandidate ? 'pointer' : 'default',
+          background: 'rgba(14, 17, 28, 0.9)',
+          backdropFilter: 'blur(20px)',
         }}
         styles={{ body: { padding: '8px 12px' } }}
         onDragOver={handleDragOver}
