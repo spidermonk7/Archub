@@ -489,11 +489,8 @@ const PythonRunner: React.FC = () => {
         <div className="runner-layout">
           <div className="workflow-stage">
             <div className="workflow-window">
-              <div className="workflow-window__chrome">
-                <span className="chrome-dot red"></span>
-                <span className="chrome-dot yellow"></span>
-                <span className="chrome-dot green"></span>
-                <span className="chrome-title">Workflow Preview</span>
+              <div className="workflow-window__header">
+                <span className="workflow-window__title">Workflow Preview</span>
               </div>
               <div className="workflow-window__canvas">
                 <RunningNodeCanvas

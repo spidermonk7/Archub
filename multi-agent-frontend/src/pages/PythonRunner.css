@@ -89,45 +89,35 @@
 
 .workflow-window {
   position: relative;
-  border-radius: 24px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  background: rgba(12, 14, 24, 0.94);
-  box-shadow: 0 28px 70px rgba(10, 14, 23, 0.55);
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.08);
+  box-shadow: none;
   overflow: hidden;
 }
 
-.workflow-window__chrome {
+.workflow-window__header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 18px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
-  background: rgba(14, 17, 28, 0.95);
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.08), rgba(15, 23, 42, 0));
 }
 
-.chrome-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  opacity: 0.85;
-}
-
-.chrome-dot.red { background: #ff5f56; }
-.chrome-dot.yellow { background: #ffbd2e; }
-.chrome-dot.green { background: #27c93f; }
-
-.chrome-title {
-  margin-left: auto;
-  font-size: 0.75rem;
-  letter-spacing: 0.18em;
+.workflow-window__title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(148, 163, 184, 0.65);
+  color: rgba(15, 23, 42, 0.65);
 }
 
 .workflow-window__canvas {
   position: relative;
   height: 60vh;
-  background: linear-gradient(180deg, rgba(11, 14, 24, 0.92) 0%, rgba(9, 11, 20, 0.96) 100%);
+  background: radial-gradient(rgba(241, 245, 249, 0.75) 1px, transparent 1px);
+  background-size: 26px 26px;
+  background-color: #ffffff;
 }
 
 .workflow-window__canvas .react-flow {
@@ -136,13 +126,7 @@
 }
 
 .workflow-grid-overlay {
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(circle at 40px 40px, rgba(148, 163, 184, 0.08) 0px, transparent 1px);
-  background-size: 40px 40px;
-  pointer-events: none;
-  z-index: 1;
-  mix-blend-mode: screen;
+  display: none;
 }
 
 .workflow-status {
@@ -321,7 +305,7 @@
     font-size: 1.6rem;
   }
 
-  .workflow-window__chrome {
-    padding: 10px 14px;
+  .workflow-window__header {
+    padding: 12px 16px;
   }
 }

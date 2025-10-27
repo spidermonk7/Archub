@@ -4,11 +4,14 @@
 }
 
 .running-node-canvas .react-flow {
-  background: #000000;
+  background-color: #0b0f19;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.55) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-position: -4px -4px;
   transition: all 0.3s ease;
 }
 
-/* 运行中的自定义节点样式 */
+/* 运行中的自定义节点样�?*/
 .running-custom-node {
   transition: all 0.3s ease;
 }
@@ -76,7 +79,7 @@
   }
 }
 
-/* 运行状态信息面板 */
+/* 运行状态信息面�?*/
 .running-canvas-info {
   background: rgba(255, 255, 255, 0.95);
   border-radius: 12px;
@@ -110,7 +113,7 @@
   font-weight: 600;
 }
 
-/* 运行中的边样式 */
+/* 运行中的边样�?*/
 .react-flow__edge.running-edge {
   animation: edgeFlow 2s infinite;
 }
@@ -135,5 +138,12 @@
   overflow: visible;
 }
 
-/* 系统运行状态下的背景 */
-.running-node-canvas .react-flow.system-running { background: #000000; }
+/* 系统运行状态下的背�?*/
+.running-node-canvas .react-flow.system-running {
+  background-color: #10172a;
+  background-image: radial-gradient(rgba(221, 231, 251, 0.55) 1px, transparent 1px);
+  background-size: 28px 28px;
+  background-position: -4px -4px;
+}
+
+
