@@ -1,0 +1,6 @@
+const labels: Record<string, string> = {
+    input: '输入',
+    output: '输出',
+    agent: '智能�?,
+  };
+  return labels[type] || type;

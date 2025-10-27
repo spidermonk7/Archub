@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Drawer, Tabs, Card, Row, Col, Typography, Tag } from 'antd';
 import './ComponentAttachPanel.css';
+
 const { Text } = Typography;
 
 export interface ComponentAttachPanelProps {
@@ -11,15 +12,15 @@ export interface ComponentAttachPanelProps {
 type ComponentDrag = { type: 'memory' | 'tool'; key: string; payload?: any };
 
 const AVAILABLE_TOOLS = [
-  { value: 'math', label: 'Math Calculator', description: '执行数学计算和公式求解', icon: '🧮' },
-  { value: 'code_executor', label: 'Code Executor', description: '执行Python代码并返回结果', icon: '💻' },
-  { value: 'custom_tool', label: 'Create Your Own Tool', description: '创建自定义工具以扩展智能体能力', icon: '🔧', comingSoon: true },
+  { value: 'math', label: 'Math Calculator', description: 'Execute numeric calculations and evaluate expressions.', icon: '🧮' },
+  { value: 'code_executor', label: 'Code Executor', description: 'Run Python snippets and return their output.', icon: '💻' },
+  { value: 'custom_tool', label: 'Create Your Own Tool', description: 'Build a bespoke tool to extend this agent (coming soon).', icon: '🧩', comingSoon: true },
 ];
 
 const ComponentAttachPanel: React.FC<ComponentAttachPanelProps> = ({ visible, onClose }) => {
   const memoryCards = useMemo(() => ([
-    { key: 'simple', title: 'Simple Memory', description: '轻量级KV记忆，用于短期上下文', icon: '🧠', comingSoon: false },
-    { key: 'vector', title: 'Vector Memory', description: '向量检索记忆（即将推出）', icon: '📚', comingSoon: true },
+    { key: 'simple', title: 'Simple Memory', description: 'Lightweight key-value memory for short-term context.', icon: '🧠', comingSoon: false },
+    { key: 'vector', title: 'Vector Memory', description: 'Vector-store retrieval memory (coming soon).', icon: '🗃️', comingSoon: true },
   ]), []);
 
   const onDragStart = (e: React.DragEvent, data: ComponentDrag) => {
@@ -46,7 +47,7 @@ const ComponentAttachPanel: React.FC<ComponentAttachPanelProps> = ({ visible, on
                   <Text type="secondary" className="component-desc">{card.description}</Text>
                 </div>
               </div>
-              {card.comingSoon && <Tag>即将推出</Tag>}
+              {card.comingSoon && <Tag>Coming soon</Tag>}
             </div>
           </Card>
         </Col>
@@ -73,7 +74,7 @@ const ComponentAttachPanel: React.FC<ComponentAttachPanelProps> = ({ visible, on
                   <Text type="secondary" className="component-desc">{tool.description}</Text>
                 </div>
               </div>
-              {tool.comingSoon && <Tag>即将推出</Tag>}
+              {tool.comingSoon && <Tag>Coming soon</Tag>}
             </div>
           </Card>
         </Col>
@@ -96,11 +97,11 @@ const ComponentAttachPanel: React.FC<ComponentAttachPanelProps> = ({ visible, on
           items={[
             { key: 'memory', label: 'Memory', children: memoryTab },
             { key: 'tools', label: 'Tools', children: toolsTab },
-            { key: 'others', label: 'Others', children: <div>更多组件类型，即将推出…</div>, disabled: true as any },
+            { key: 'others', label: 'Others', children: <div>More component types are on the way.</div>, disabled: true as any },
           ]}
         />
         <div className="hint">
-          <Text type="secondary">将上方组件拖拽到画布中的目标节点，即可完成添加。</Text>
+          <Text type="secondary">Drag a component above and drop it onto a node on the canvas to attach it.</Text>
         </div>
       </div>
     </Drawer>

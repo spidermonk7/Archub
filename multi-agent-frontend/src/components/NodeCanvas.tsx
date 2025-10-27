@@ -47,9 +47,9 @@ const getNodeTypeColor = (type: string): string => {
 
 const getTypeLabel = (type: string): string => {
   const labels: Record<string, string> = {
-    input: '输入',
-    output: '输出',
-    agent: '智能体',
+    input: 'Input',
+    output: 'Output',
+    agent: 'Agent',
   };
   return labels[type] || type;
 };
@@ -130,7 +130,7 @@ const CustomNode: React.FC<any> = ({ data, selected }) => {
 
         {data.config && Object.keys(data.config).length > 0 && (
           <div className="node-config">
-            <div className="config-label">配置:</div>
+            <div className="config-label">Config:</div>
             {Object.entries(data.config)
               .slice(0, 2)
               .map(([key, value]: any) => (
@@ -283,7 +283,8 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
     (event: React.MouseEvent, node: FlowNode) => {
       if (!onNodeClick) return;
       if (isCreatingEdge) {
-        // 在创建连线模式下，阻止默认选择行为，仅传递点击给上层处理选点逻辑
+        // When the user is creating a connection, block default selection behaviour
+        // and let the parent handle the click for edge picking instead.
         event.stopPropagation();
       }
       onNodeClick(node.id);
@@ -330,9 +331,9 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
         <Controls />
         <MiniMap style={{ height: 120, backgroundColor: '#f5f5f5' }} zoomable pannable />
         <Panel position="top-left" className="canvas-info">
-          <div>节点数量: {nodes.length}</div>
-          <div>连接数量: {edges.length}</div>
-          {selectedNodes.length > 0 && <div>已选择: {selectedNodes.length} 个节点</div>}
+          <div>Nodes: {nodes.length}</div>
+          <div>Connections: {edges.length}</div>
+          {selectedNodes.length > 0 && <div>Selected: {selectedNodes.length} nodes</div>}
         </Panel>
       </ReactFlow>
     </div>

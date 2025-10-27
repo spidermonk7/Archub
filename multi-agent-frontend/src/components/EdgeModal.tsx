@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Modal, Form, Select, Radio, Input, Space, Alert, Typography } from 'antd';
 import { LinkOutlined } from '@ant-design/icons';
 import { Node, Edge } from '../utils/types';
@@ -66,9 +66,9 @@ const EdgeModal: React.FC<EdgeModalProps> = ({
 
   const getTypeLabel = (type: string): string => {
     const labels: Record<string, string> = {
-      input: '输入',
-      output: '输出',
-      agent: '智能体',
+      input: 'Input',
+      output: 'Output',
+      agent: 'Agent',
     };
     return labels[type] || type;
   };
@@ -84,7 +84,7 @@ const EdgeModal: React.FC<EdgeModalProps> = ({
       title={
         <Space>
           <LinkOutlined />
-          建立节点连接
+          Create Connection
         </Space>
       }
       open={visible}
@@ -92,7 +92,7 @@ const EdgeModal: React.FC<EdgeModalProps> = ({
       onOk={handleSubmit}
       confirmLoading={loading}
       width={600}
-      destroyOnHidden
+      destroyOnClose
     >
       <Form
         form={form}
@@ -101,8 +101,8 @@ const EdgeModal: React.FC<EdgeModalProps> = ({
         initialValues={{ type: 'hard', priority: 'normal' }}
       >
         <Alert
-          message="连接说明"
-          description="连接定义了信息在节点之间的传递路径。Hard Edge表示确定的信息传递，Soft Edge表示条件性传递（暂未实现）。"
+          message="About connections"
+          description="A connection defines how messages travel between nodes. Hard edges guarantee delivery, while soft edges will add conditional delivery in the future."
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
@@ -110,20 +110,20 @@ const EdgeModal: React.FC<EdgeModalProps> = ({
 
         <Form.Item
           name="type"
-          label="连接类型"
-          rules={[{ required: true, message: '请选择连接类型' }]}
+          label="Connection type"
+          rules={[{ required: true, message: 'Please choose a connection type' }]}
         >
           <Radio.Group onChange={handleEdgeTypeChange} value={edgeType}>
             <Space direction="vertical">
               <Radio value="hard">
                 <strong>Hard Edge</strong>
                 <br />
-                <Text type="secondary">确定性连接，信息必定传递到目标节点</Text>
+                <Text type="secondary">Guaranteed delivery — every message is sent to the target node.</Text>
               </Radio>
               <Radio value="soft" disabled>
                 <strong>Soft Edge</strong>
                 <br />
-                <Text type="secondary">条件性连接，根据条件决定是否传递（暂未实现）</Text>
+                <Text type="secondary">Conditional delivery (coming soon).</Text>
               </Radio>
             </Space>
           </Radio.Group>
@@ -131,18 +131,18 @@ const EdgeModal: React.FC<EdgeModalProps> = ({
 
         <Form.Item
           name="source"
-          label="源节点"
-          rules={[{ required: true, message: '请选择源节点' }]}
+          label="Source node"
+          rules={[{ required: true, message: 'Please select a source node' }]}
         >
-          <Select 
-            placeholder="请选择源节点"
+          <Select
+            placeholder="Select a source node"
             showSearch
             filterOption={(input, option) => {
               if (!option || !option.children) return false;
-              const text = Array.isArray(option.children) 
-                ? option.children.join('') 
+              const text = Array.isArray(option.children)
+                ? option.children.join('')
                 : String(option.children);
-              return text.toLowerCase().indexOf(input.toLowerCase()) >= 0;
+              return text.toLowerCase().includes(input.toLowerCase());
             }}
           >
             {availableNodes.map(node => (
@@ -155,18 +155,18 @@ const EdgeModal: React.FC<EdgeModalProps> = ({
 
         <Form.Item
           name="target"
-          label="目标节点"
-          rules={[{ required: true, message: '请选择目标节点' }]}
+          label="Target node"
+          rules={[{ required: true, message: 'Please select a target node' }]}
         >
-          <Select 
-            placeholder="请选择目标节点"
+          <Select
+            placeholder="Select a target node"
             showSearch
             filterOption={(input, option) => {
               if (!option || !option.children) return false;
-              const text = Array.isArray(option.children) 
-                ? option.children.join('') 
+              const text = Array.isArray(option.children)
+                ? option.children.join('')
                 : String(option.children);
-              return text.toLowerCase().indexOf(input.toLowerCase()) >= 0;
+              return text.toLowerCase().includes(input.toLowerCase());
             }}
             disabled={!sourceNodeId}
           >
@@ -178,24 +178,18 @@ const EdgeModal: React.FC<EdgeModalProps> = ({
           </Select>
         </Form.Item>
 
-        <Form.Item
-          name="priority"
-          label="优先级"
-        >
-          <Select placeholder="选择连接优先级">
-            <Option value="high">高优先级</Option>
-            <Option value="normal">普通优先级</Option>
-            <Option value="low">低优先级</Option>
+        <Form.Item name="priority" label="Priority">
+          <Select placeholder="Select connection priority">
+            <Option value="high">High priority</Option>
+            <Option value="normal">Normal priority</Option>
+            <Option value="low">Low priority</Option>
           </Select>
         </Form.Item>
 
-        <Form.Item
-          name="description"
-          label="连接描述"
-        >
-          <TextArea 
-            rows={3} 
-            placeholder="描述此连接的用途和信息传递的内容"
+        <Form.Item name="description" label="Description">
+          <TextArea
+            rows={3}
+            placeholder="Describe what this connection is responsible for."
             autoSize={{ minRows: 2, maxRows: 4 }}
           />
         </Form.Item>
@@ -203,12 +197,12 @@ const EdgeModal: React.FC<EdgeModalProps> = ({
         {edgeType === 'soft' && (
           <Form.Item
             name="condition"
-            label="触发条件"
-            rules={[{ required: true, message: '请输入触发条件' }]}
+            label="Trigger condition"
+            rules={[{ required: true, message: 'Please provide a condition' }]}
           >
-            <TextArea 
-              rows={3} 
-              placeholder="输入触发此连接的条件表达式"
+            <TextArea
+              rows={3}
+              placeholder="Provide a condition to trigger this connection."
               autoSize={{ minRows: 2, maxRows: 4 }}
             />
           </Form.Item>

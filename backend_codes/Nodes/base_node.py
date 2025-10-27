@@ -10,7 +10,7 @@ from Messages.simpleMessage import SimpleMessageCreator
 class BaseNode(ABC):
     """Base class for all Nodes."""
 
-    def __init__(self, name: str, id = None):
+    def __init__(self, name: str, id = None, emit=None, run_id: str | None = None, team_id: str | None = None):
         self.id = id if id is not None else f"node_{int(time.time()*1000)}"
         self.name = name
         self.type = None # as a marker of LLM node, agent node or logic node
@@ -18,6 +18,9 @@ class BaseNode(ABC):
         self.processed = []
         self.received = []
         self.resume_info = None
+        self.emit = emit or (lambda _e: None)
+        self.run_id = run_id
+        self.team_id = team_id
 
     
 

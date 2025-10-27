@@ -51,28 +51,16 @@ const AgentPool: React.FC = () => {
       setLoading(true);
       const agentPool = await loadAgentPool();
       const categoryData = organizeAgentsByCategory(agentPool);
-      
+
       setAgents(agentPool);
       setCategories(categoryData);
       setFilteredAgents(agentPool);
     } catch (error) {
-      message.error('加载智能体池失败');
+      message.error('Failed to load agent pool');
       console.error('Failed to load agent pool:', error);
     } finally {
       setLoading(false);
     }
-  };
-
-  
-
-  const handleUseAgent = (agent: AgentPoolItem) => {
-    // 将选中的智能体信息传递给构建器页面
-    navigate('/builder', { 
-      state: { 
-        preselectedAgent: agent,
-        action: 'add-agent'
-      } 
-    });
   };
 
   const handleCreateCustom = () => {
@@ -83,15 +71,13 @@ const AgentPool: React.FC = () => {
     navigate('/');
   };
 
-  // removed unused getAllCategories
-
   if (loading) {
     return (
       <Layout className="agent-pool">
         <Content className="agent-pool-loading">
           <div className="loading-shell glass">
             <Spin size="large" />
-            <Paragraph className="loading-copy">正在加载智能体池...</Paragraph>
+            <Paragraph className="loading-copy">Loading agent pool…</Paragraph>
           </div>
         </Content>
       </Layout>
@@ -106,33 +92,33 @@ const AgentPool: React.FC = () => {
             <Tag className="hero-tag" bordered={false}>Agent Registry</Tag>
             <Title level={2}>Agent Pool</Title>
             <Paragraph type="secondary">
-              发现预训练的专家智能体，快速组合出贴合业务的工作流。
+              Discover trained specialist agents and quickly assemble a workflow that fits your use case.
             </Paragraph>
             <Space size="middle" className="hero-buttons" wrap>
               <Button icon={<ArrowLeftOutlined />} onClick={handleGoBack}>
-                返回首页
+                Back to Home
               </Button>
               <Button
                 type="primary"
                 icon={<PlusOutlined />}
                 onClick={handleCreateCustom}
               >
-                创建自定义智能体
+                Create Custom Agent
               </Button>
             </Space>
           </div>
           <div className="hero-stats">
             <div className="hero-stat">
               <span className="stat-value">{agents.length}</span>
-              <span className="stat-label">总智能体</span>
+              <span className="stat-label">Total agents</span>
             </div>
             <div className="hero-stat">
               <span className="stat-value">{categories.length}</span>
-              <span className="stat-label">分类</span>
+              <span className="stat-label">Categories</span>
             </div>
             <div className="hero-stat">
               <span className="stat-value">{filteredAgents.length}</span>
-              <span className="stat-label">匹配结果</span>
+              <span className="stat-label">Matching results</span>
             </div>
           </div>
         </div>
@@ -143,7 +129,7 @@ const AgentPool: React.FC = () => {
           <section className="filter-panel glass-soft">
             <div className="filter-grid">
               <Search
-                placeholder="搜索智能体名称、描述或标签"
+                placeholder="Search by agent name, description or tag"
                 allowClear
                 onSearch={value => setSearchTerm(value)}
                 onChange={e => setSearchTerm(e.target.value)}
@@ -154,7 +140,7 @@ const AgentPool: React.FC = () => {
                 value={selectedCategory}
                 onChange={value => setSelectedCategory(value)}
               >
-                <Option value="all">所有分类</Option>
+                <Option value="all">All categories</Option>
                 {categories.map(category => (
                   <Option key={category.name} value={category.name}>
                     {category.name}
@@ -167,15 +153,15 @@ const AgentPool: React.FC = () => {
                   setSelectedCategory('all');
                 }}
               >
-                重置筛选
+                Reset filters
               </Button>
             </div>
             <div className="filter-footer">
               <Text type="secondary">
-                当前展示 <Text strong>{filteredAgents.length}</Text> 个智能体
+                Showing <Text strong>{filteredAgents.length}</Text> agents
               </Text>
               <Text type="secondary">
-                智能体分类 <Text strong>{categories.length}</Text> 项
+                Agent categories <Text strong>{categories.length}</Text>
               </Text>
             </div>
           </section>
@@ -184,15 +170,13 @@ const AgentPool: React.FC = () => {
             {filteredAgents.length === 0 ? (
               <div className="empty-state glass">
                 <RobotOutlined className="empty-icon" />
-                <Title level={3}>未找到匹配的智能体</Title>
-                <Paragraph>
-                  尝试调整搜索条件或选择不同的分类
-                </Paragraph>
+                <Title level={3}>No matching agents</Title>
+                <Paragraph>Try adjusting the search term or selecting another category.</Paragraph>
                 <Button type="primary" onClick={() => {
                   setSearchTerm('');
                   setSelectedCategory('all');
                 }}>
-                  重置筛选
+                  Reset filters
                 </Button>
               </div>
             ) : (
@@ -204,12 +188,14 @@ const AgentPool: React.FC = () => {
                         <div className="agent-avatar">
                           <RobotOutlined />
                         </div>
-                        <Tag bordered={false} className="version-tag">
-                          v{agent.version}
-                        </Tag>
+                        <div className="agent-card__title">
+                          <Title level={4}>{agent.name}</Title>
+                          <Tag bordered={false} className="version-tag">
+                            v{agent.version}
+                          </Tag>
+                        </div>
                       </div>
                       <div className="agent-card__body">
-                        <Title level={4}>{agent.name}</Title>
                         <Paragraph ellipsis={{ rows: 3, tooltip: agent.description }}>
                           {agent.description}
                         </Paragraph>
@@ -231,19 +217,10 @@ const AgentPool: React.FC = () => {
                           )}
                         </div>
                         <div className="agent-config">
-                          <Text type="secondary">模型: {agent.config.llmModel}</Text>
-                          <Text type="secondary">输入: {agent.config.inputDataType}</Text>
-                          <Text type="secondary">输出: {agent.config.outputDataType}</Text>
+                          <Text type="secondary">Model: {agent.config.llmModel}</Text>
+                          <Text type="secondary">Input: {agent.config.inputDataType}</Text>
+                          <Text type="secondary">Output: {agent.config.outputDataType}</Text>
                         </div>
-                      </div>
-                      <div className="agent-card__footer">
-                        <Button
-                          type="primary"
-                          block
-                          onClick={() => handleUseAgent(agent)}
-                        >
-                          使用此智能体
-                        </Button>
                       </div>
                     </Card>
                   </Col>
@@ -254,7 +231,7 @@ const AgentPool: React.FC = () => {
 
           {filteredAgents.length > 0 && selectedCategory === 'all' && (
             <section className="categories-section">
-              <Title level={3}>按分类浏览</Title>
+              <Title level={3}>Browse by category</Title>
               <Row gutter={[18, 18]}>
                 {categories.map(category => (
                   <Col key={category.name} xs={24} sm={12} md={8} lg={6}>
@@ -266,7 +243,7 @@ const AgentPool: React.FC = () => {
                       <div className="category-card__body">
                         <Title level={4}>{category.name}</Title>
                         <Text type="secondary">
-                          {category.agents.length} 个智能体
+                          {category.agents.length} agents
                         </Text>
                       </div>
                     </Card>

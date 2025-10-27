@@ -34,7 +34,9 @@ RESET = "\033[0m"
 class SimpleTeam(BaseTeam):
     def __init__(self, 
         goal = "Empty Goal", 
-        config = None, 
+        config = None,
+        emit=None,
+        run_id: str | None = None,
         ):
         super().__init__()
 
@@ -44,6 +46,8 @@ class SimpleTeam(BaseTeam):
 
         self.team_id = self.config.get('name', None)
         self.goal = goal
+        self.emit = emit or (lambda _e: None)
+        self.run_id = run_id
    
         self.nodes = {}
         self.edges = {}
@@ -64,6 +68,9 @@ class SimpleTeam(BaseTeam):
                     tools=[], 
                     system_prompt = node_config['config'].get('systemPrompt', ''),
                     agent_resume = node_config['config'].get('description', ''),
+                    emit=self.emit,
+                    run_id=self.run_id,
+                    team_id=self.team_id,
                 )
 
                 self.nodes[node.id] = node 
@@ -72,7 +79,10 @@ class SimpleTeam(BaseTeam):
             elif node_config['type'].lower() == 'input':
                 node = BaseProcedureNode(
                     name = node_config['name'], 
-                    id = node_config.get('id', None)
+                    id = node_config.get('id', None),
+                    emit=self.emit,
+                    run_id=self.run_id,
+                    team_id=self.team_id,
                 )
                 
                 initial_message = SimpleMessageCreator().create_message(
@@ -87,7 +97,10 @@ class SimpleTeam(BaseTeam):
             elif node_config['type'].lower() == 'output':
                 node = BaseProcedureNode(
                     name = node_config['name'], 
-                    id = node_config.get('id', None)
+                    id = node_config.get('id', None),
+                    emit=self.emit,
+                    run_id=self.run_id,
+                    team_id=self.team_id,
                 )
                 self.nodes[node.id] = node
                 print(f"✅ 注册输出节点: {node.name} (ID: {node.id})")
@@ -109,7 +122,10 @@ class SimpleTeam(BaseTeam):
                     source=self.nodes[source_id],
                     target=self.nodes[target_id],
                     edge_type=edge_type, 
-                    id = None
+                    id = None,
+                    emit=self.emit,
+                    run_id=self.run_id,
+                    team_id=self.team_id,
                 )
                 self.edges[edge.edge_id] = edge
                 print(f"✅ 注册边: {edge.edge_id} (源: {source_id}, 目标: {target_id}, 类型: {edge_type})")
@@ -118,6 +134,9 @@ class SimpleTeam(BaseTeam):
 
     def global_process(self):
         for node_id, node in self.nodes.items():
+            # Skip nodes that have nothing to process
+            if not getattr(node, 'received', []):
+                continue
             node.process()
             node.received = []  # Clear received messages after processing    
         
@@ -139,6 +158,26 @@ class SimpleTeam(BaseTeam):
         # TODO: Ending Condition
         out_node = self.nodes['output-node']
 
+        try:
+            self.emit({
+                'type': 'team.run.started',
+                'runId': self.run_id,
+                'teamId': self.team_id,
+                'meta': {
+                    'nodeCount': len(self.nodes),
+                    'edgeCount': len(self.edges),
+                }
+            })
+            # Initialize all nodes to waiting state for UI
+            for node_id, node in self.nodes.items():
+                self.emit({
+                    'type': 'node.state.waiting',
+                    'runId': self.run_id,
+                    'teamId': self.team_id,
+                    'node': {'id': node.id, 'name': node.name},
+                })
+        except Exception:
+            pass
         while debug_counts < 5:
             # Color print process stage
             self.global_process()
@@ -148,6 +187,24 @@ class SimpleTeam(BaseTeam):
                 print(f"OutNode received is: {out_node.received}")
                 msg = out_node.received[-1]
                 print(f"Type of msg: {type(msg)}")
+                try:
+                    self.emit({
+                        'type': 'node.state.done',
+                        'runId': self.run_id,
+                        'teamId': self.team_id,
+                        'node': {'id': out_node.id, 'name': out_node.name},
+                    })
+                except Exception:
+                    pass
+                try:
+                    self.emit({
+                        'type': 'team.run.finished',
+                        'runId': self.run_id,
+                        'teamId': self.team_id,
+                        'output': msg.content,
+                    })
+                except Exception:
+                    pass
                 return msg.content
             debug_counts += 1
        

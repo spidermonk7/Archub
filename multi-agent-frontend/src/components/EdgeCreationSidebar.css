@@ -1,90 +1,269 @@
+.edge-creation-drawer .ant-drawer-header {
+  padding: 20px 24px;
+  background: rgba(15, 18, 32, 0.94);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.edge-creation-drawer .ant-drawer-title {
+  color: rgba(226, 232, 240, 0.92);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.edge-creation-drawer .ant-drawer-body {
+  background:
+    radial-gradient(60% 95% at 20% 10%, rgba(124, 58, 237, 0.16), transparent 65%),
+    radial-gradient(55% 90% at 85% 15%, rgba(56, 189, 248, 0.14), transparent 60%),
+    rgba(9, 12, 21, 0.94);
+  padding: 28px 34px 24px 44px;
+}
+
+.edge-creation-drawer .ant-drawer-content-wrapper {
+  box-shadow: -18px 0 48px rgba(8, 11, 20, 0.56) !important;
+  border-left: 1px solid rgba(148, 163, 184, 0.12) !important;
+}
+
 .edge-creation-content {
   display: flex;
   flex-direction: column;
+  gap: 22px;
   height: 100%;
-  gap: 20px;
+  color: rgba(226, 232, 240, 0.9);
 }
 
-/* 为了在没有遮罩层的情况下突出侧边栏，添加一些阴影效果 */
-.ant-drawer-content-wrapper {
-  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.15) !important;
-  border-left: 1px solid #e8e8e8 !important;
+.glass-panel {
+  border-radius: 20px;
+  background: rgba(15, 18, 32, 0.88);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  box-shadow: 0 24px 60px rgba(8, 11, 20, 0.55);
 }
 
-.creation-steps {
-  padding: 16px;
-  background: #f8f9fa;
-  border-radius: 8px;
-  border: 1px solid #e9ecef;
-}
-
-.creation-steps .ant-steps-item-title {
-  font-size: 14px !important;
-  font-weight: 500 !important;
-}
-
-.creation-steps .ant-steps-item-description {
-  margin-top: 4px;
-}
-
-.selection-status {
-  flex: 1;
-}
-
-.selected-node {
-  margin-bottom: 12px;
-  padding: 12px;
-  background: #f6ffed;
-  border: 1px solid #b7eb8f;
-  border-radius: 6px;
-}
-
-.selected-node .ant-typography {
-  margin-bottom: 4px;
-}
-
-.node-info {
+.edge-overview {
+  padding: 22px 24px;
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 18px;
 }
 
-.node-info .ant-btn-link {
-  padding: 0;
-  height: auto;
+.edge-overview__title .ant-typography {
+  margin: 0;
+}
+
+.edge-overview__title .ant-typography + .ant-typography {
+  color: rgba(166, 183, 207, 0.78) !important;
+}
+
+.edge-step-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.edge-step {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(18, 21, 36, 0.85);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.edge-step--done {
+  border-color: rgba(124, 58, 237, 0.45);
+  background: rgba(28, 20, 48, 0.92);
+}
+
+.edge-step__index {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: rgba(124, 58, 237, 0.28);
+  color: rgba(241, 245, 255, 0.9);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.edge-step--pending .edge-step__index {
+  background: rgba(148, 163, 184, 0.18);
+}
+
+.edge-step__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.edge-step__label {
+  font-weight: 600;
+  color: rgba(226, 232, 240, 0.9);
+}
+
+.edge-step__description {
+  color: rgba(166, 183, 207, 0.78);
   font-size: 12px;
 }
 
+.selection-status {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.edge-instructions {
+  padding: 18px 20px;
+  line-height: 1.6;
+}
+
+.edge-instructions ul {
+  list-style: disc;
+  margin: 8px 0 0 20px;
+  color: rgba(166, 183, 207, 0.8);
+}
+
+.edge-selection-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.edge-node-card {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border-radius: 18px;
+}
+
+.edge-node-card.filled {
+  border-color: rgba(124, 58, 237, 0.45);
+  background: rgba(26, 18, 40, 0.92);
+}
+
+.edge-node-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: rgba(226, 232, 240, 0.88);
+}
+
+.edge-node-card__body {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.edge-node-card__body.empty {
+  justify-content: center;
+  padding: 20px 0;
+  color: rgba(166, 183, 207, 0.8);
+}
+
+.edge-node-card__badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: rgba(124, 58, 237, 0.28);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(241, 245, 255, 0.92);
+  font-size: 16px;
+}
+
+.edge-node-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.edge-node-card__meta .ant-typography {
+  margin: 0;
+}
+
+.edge-node-card__meta .ant-typography + .ant-typography {
+  color: rgba(166, 183, 207, 0.8) !important;
+}
+
+.edge-node-card__tag {
+  margin-left: auto;
+  font-size: 11px;
+  border-radius: 999px;
+  padding: 2px 10px;
+}
+
 .edge-config-form {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #e9ecef;
+  padding: 22px 24px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
 
 .edge-config-form .ant-typography {
-  margin-bottom: 16px;
+  margin: 0;
+  color: rgba(226, 232, 240, 0.9);
+}
+
+.edge-type-group .ant-radio-wrapper {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(16, 23, 38, 0.72);
+  border: 1px solid transparent;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.edge-type-group .ant-radio-wrapper:hover {
+  border-color: rgba(124, 58, 237, 0.45);
+  box-shadow: 0 12px 26px rgba(12, 18, 34, 0.45);
+}
+
+.edge-type-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.edge-type-item.disabled {
+  opacity: 0.75;
+}
+
+.edge-type-item strong {
+  color: rgba(226, 232, 240, 0.9);
+}
+
+.edge-type-item .ant-typography {
+  color: rgba(148, 163, 184, 0.78) !important;
 }
 
 .sidebar-actions {
   margin-top: auto;
-  padding-top: 16px;
-  border-top: 1px solid #e9ecef;
   display: flex;
   justify-content: flex-end;
+  gap: 12px;
 }
 
-/* 高亮效果 */
-.creating-edge-node {
-  box-shadow: 0 0 0 3px rgba(22, 119, 255, 0.3) !important;
-  border-color: #1677ff !important;
+.sidebar-actions .ant-btn {
+  border-radius: 12px;
+  padding: 0 18px;
 }
 
-.creating-edge-source {
-  box-shadow: 0 0 0 3px rgba(82, 196, 26, 0.3) !important;
-  border-color: #52c41a !important;
+.sidebar-actions .ant-btn-primary {
+  background: linear-gradient(120deg, rgba(124, 58, 237, 0.95), rgba(56, 189, 248, 0.9));
+  border: none;
+  color: #0b1020;
+  box-shadow: 0 16px 36px rgba(56, 189, 248, 0.35);
 }
 
-.creating-edge-target {
-  box-shadow: 0 0 0 3px rgba(255, 77, 79, 0.3) !important;
-  border-color: #ff4d4f !important;
+.sidebar-actions .ant-btn-primary:hover {
+  background: linear-gradient(120deg, rgba(109, 40, 217, 0.98), rgba(45, 212, 191, 0.92));
+}
+
+@media (max-width: 768px) {
+  .edge-selection-grid {
+    grid-template-columns: 1fr;
+  }
 }

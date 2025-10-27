@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Modal, Form, Input, Select, Button, Space, Divider, Card, Row, Col, Typography } from 'antd';
 import { PlusOutlined, CheckOutlined } from '@ant-design/icons';
 import { Node } from '../utils/types';
+import './NodeModal.css';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -219,6 +220,7 @@ const NodeModal: React.FC<NodeModalProps> = ({ visible, onCancel, onSubmit }) =>
 
   return (
     <Modal
+      className="node-modal"
       title={
         <Space>
           <PlusOutlined />
@@ -239,6 +241,7 @@ const NodeModal: React.FC<NodeModalProps> = ({ visible, onCancel, onSubmit }) =>
       destroyOnHidden={true}
     >
       <Form
+        className="node-modal-form"
         form={form}
         layout="vertical"
         requiredMark={false}
@@ -496,58 +499,34 @@ const NodeModal: React.FC<NodeModalProps> = ({ visible, onCancel, onSubmit }) =>
               label="工具配置"
               name={['config', 'tools']}
             >
-              <div style={{ marginTop: '8px' }}>
-                <Text type="secondary" style={{ fontSize: '12px', marginBottom: '12px', display: 'block' }}>
-                  选择此智能体可以使用的工具（可多选）
+              <div className="tool-selection-block">
+                <Text type="secondary" className="tool-selection-hint">
+                  Select the tools this agent can use (multi-select).
                 </Text>
                 <Row gutter={[12, 12]}>
                   {AVAILABLE_TOOLS.map(tool => (
                     <Col span={12} key={tool.value}>
                       <Card
                         size="small"
-                        hoverable
-                        className={`tool-card ${selectedTools.includes(tool.value) ? 'tool-card-selected' : ''} ${tool.isCustom ? 'custom-tool-card' : ''}`}
+                        hoverable={!tool.isCustom}
+                        className={`tool-card ${selectedTools.includes(tool.value) ? 'tool-card--selected' : ''} ${tool.isCustom ? 'tool-card--custom' : ''}`}
                         onClick={() => handleToolToggle(tool.value)}
-                        style={{
-                          cursor: 'pointer',
-                          border: tool.isCustom 
-                            ? '2px dashed #52c41a' 
-                            : selectedTools.includes(tool.value) ? '2px solid #1677ff' : '1px solid #d9d9d9',
-                          backgroundColor: tool.isCustom
-                            ? '#f6ffed'
-                            : selectedTools.includes(tool.value) ? '#f0f8ff' : '#ffffff',
-                          transition: 'all 0.3s ease'
-                        }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              marginBottom: '4px',
-                              fontSize: '14px',
-                              fontWeight: 'bold'
-                            }}>
-                              <span style={{ marginRight: '8px', fontSize: '16px' }}>{tool.icon}</span>
-                              {tool.label}
+                        <div className="tool-card__body">
+                          <div className="tool-card__main">
+                            <span className="tool-card__icon">{tool.icon}</span>
+                            <div className="tool-card__text">
+                              <div className="tool-card__title">{tool.label}</div>
+                              <Text type="secondary" className="tool-card__description">
+                                {tool.description}
+                              </Text>
                             </div>
-                            <Text type="secondary" style={{ fontSize: '12px' }}>
-                              {tool.description}
-                            </Text>
                           </div>
                           {!tool.isCustom && selectedTools.includes(tool.value) && (
-                            <CheckOutlined 
-                              style={{ 
-                                color: '#1677ff', 
-                                fontSize: '16px',
-                                marginLeft: '8px'
-                              }} 
-                            />
+                            <CheckOutlined className="tool-card__check" />
                           )}
                           {tool.isCustom && (
-                            <Text type="secondary" style={{ fontSize: '12px', marginLeft: '8px' }}>
-                              即将推出
-                            </Text>
+                            <span className="tool-card__status">Coming soon</span>
                           )}
                         </div>
                       </Card>
@@ -555,12 +534,13 @@ const NodeModal: React.FC<NodeModalProps> = ({ visible, onCancel, onSubmit }) =>
                   ))}
                 </Row>
                 {selectedTools.length > 0 && (
-                  <div style={{ marginTop: '12px' }}>
-                    <Text type="secondary" style={{ fontSize: '12px' }}>
-                      已选择 {selectedTools.length} 个工具: {selectedTools.map(tool => {
-                        const toolInfo = AVAILABLE_TOOLS.find(t => t.value === tool);
-                        return toolInfo?.label;
-                      }).filter(Boolean).join(', ')}
+                  <div className="tool-selection-summary">
+                    <Text type="secondary">
+                      Selected {selectedTools.length} item(s):{' '}
+                      {selectedTools
+                        .map(tool => AVAILABLE_TOOLS.find(t => t.value === tool)?.label)
+                        .filter((label): label is string => Boolean(label))
+                        .join(', ')}
                     </Text>
                   </div>
                 )}

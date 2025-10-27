@@ -14,17 +14,6 @@ coverage/
 *.log
 npm-debug.log*
 yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-.temp/
-tmp/
-*.tmp
-
-# env / secrets
-.env
-.env.*
-*.local
-
 # OS/editor junk
 .DS_Store
 Thumbs.db

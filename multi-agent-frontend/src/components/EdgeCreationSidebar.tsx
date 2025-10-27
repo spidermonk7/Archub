@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Drawer, Form, Radio, Input, Select, Button, Space, Alert, Typography, Steps, Badge } from 'antd';
-import { LinkOutlined, CloseOutlined, CheckOutlined } from '@ant-design/icons';
+import { Drawer, Form, Radio, Input, Select, Button, Space, Typography, Tag } from 'antd';
+import { LinkOutlined, CloseOutlined, CheckOutlined, AimOutlined } from '@ant-design/icons';
 import { Node, Edge } from '../utils/types';
 import './EdgeCreationSidebar.css';
 
@@ -26,7 +26,7 @@ const EdgeCreationSidebar: React.FC<EdgeCreationSidebarProps> = ({
   availableNodes,
   selectedSource,
   selectedTarget,
-  onNodeSelect,
+  onNodeSelect, // reserved for future use when the sidebar can trigger selections
   onNodeDeselect,
 }) => {
   const [form] = Form.useForm();
@@ -35,9 +35,9 @@ const EdgeCreationSidebar: React.FC<EdgeCreationSidebarProps> = ({
 
   const getTypeLabel = (type: string): string => {
     const labels: Record<string, string> = {
-      input: '输入',
-      output: '输出',
-      agent: '智能体',
+      input: 'Input',
+      output: 'Output',
+      agent: 'Agent',
     };
     return labels[type] || type;
   };
@@ -79,36 +79,88 @@ const EdgeCreationSidebar: React.FC<EdgeCreationSidebarProps> = ({
     onClose();
   };
 
-  const handleEdgeTypeChange = (e: any) => {
-    setEdgeType(e.target.value);
-  };
-
-  const getCurrentStep = () => {
-    if (!selectedSource && !selectedTarget) return 0;
-    if (selectedSource && !selectedTarget) return 1;
-    if (selectedSource && selectedTarget) return 2;
-    return 0;
+  const handleEdgeTypeChange = (event: any) => {
+    setEdgeType(event.target.value);
   };
 
   const getSourceNode = () => availableNodes.find(node => node.id === selectedSource);
   const getTargetNode = () => availableNodes.find(node => node.id === selectedTarget);
 
-  const canProceed = selectedSource && selectedTarget;
+  const canProceed = Boolean(selectedSource && selectedTarget);
+
+  const stepIndicators = [
+    {
+      key: 'source',
+      label: 'Select source node',
+      description: selectedSource ? getSourceNode()?.name || '' : 'Click a node on the canvas to start the flow.',
+      done: Boolean(selectedSource),
+    },
+    {
+      key: 'target',
+      label: 'Select target node',
+      description: selectedTarget ? getTargetNode()?.name || '' : 'Choose another node to receive the output.',
+      done: Boolean(selectedTarget),
+    },
+    {
+      key: 'configure',
+      label: 'Configure connection',
+      description: canProceed ? 'Complete the form below.' : 'Finish selecting both nodes to continue.',
+      done: canProceed,
+    },
+  ];
+
+  const renderNodeCard = (
+    title: string,
+    node: Node | undefined,
+    role: 'source' | 'target',
+    placeholder: string,
+  ) => (
+    <div className={`edge-node-card glass-panel ${node ? 'filled' : ''}`}>
+      <div className="edge-node-card__header">
+        <span>{title}</span>
+        {node && (
+          <Button type="link" size="small" onClick={() => onNodeDeselect(role)}>
+            Clear
+          </Button>
+        )}
+      </div>
+      {node ? (
+        <div className="edge-node-card__body">
+          <div className="edge-node-card__badge">
+            <AimOutlined />
+          </div>
+          <div className="edge-node-card__meta">
+            <Text strong>{node.name}</Text>
+            <Text type="secondary">{getTypeLabel(node.type)}</Text>
+          </div>
+          <Tag bordered={false} color="blue" className="edge-node-card__tag">
+            ID: {node.id}
+          </Tag>
+        </div>
+      ) : (
+        <div className="edge-node-card__body empty">
+          <Text type="secondary">{placeholder}</Text>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <Drawer
+      className="edge-creation-drawer"
       title={
         <Space>
           <LinkOutlined />
-          创建节点连接
+          Create Connection
         </Space>
       }
       placement="right"
       onClose={handleClose}
       open={visible}
-      width={400}
-      mask={false} // 关键：去掉遮罩层
-      maskClosable={false} // 确保点击外部不会关闭
+      width={420}
+      mask={false}
+      maskClosable={false}
+      bodyStyle={{ padding: 0 }}
       extra={
         <Button
           type="text"
@@ -118,91 +170,44 @@ const EdgeCreationSidebar: React.FC<EdgeCreationSidebarProps> = ({
       }
     >
       <div className="edge-creation-content">
-        {/* 进度指示器 */}
-        <div className="creation-steps">
-          <Steps
-            current={getCurrentStep()}
-            direction="vertical"
-            size="small"
-            items={[
-              {
-                title: '选择源节点',
-                description: selectedSource ? 
-                  <Text type="success">{getSourceNode()?.name}</Text> : 
-                  '在画布上点击源节点',
-                icon: selectedSource ? <CheckOutlined /> : <Badge count={1} />,
-              },
-              {
-                title: '选择目标节点',
-                description: selectedTarget ? 
-                  <Text type="success">{getTargetNode()?.name}</Text> : 
-                  '在画布上点击目标节点',
-                icon: selectedTarget ? <CheckOutlined /> : <Badge count={2} />,
-              },
-              {
-                title: '配置连接',
-                description: canProceed ? '设置连接属性' : '等待节点选择完成',
-                icon: canProceed ? <Badge count={3} /> : null,
-              },
-            ]}
-          />
+        <div className="edge-overview glass-panel">
+          <div className="edge-overview__title">
+            <Title level={4}>Link nodes</Title>
+            <Text type="secondary">
+              Select the origin and destination directly on the canvas, then refine the connection metadata below.
+            </Text>
+          </div>
+          <div className="edge-step-list">
+            {stepIndicators.map((step, index) => (
+              <div className={`edge-step ${step.done ? 'edge-step--done' : 'edge-step--pending'}`} key={step.key}>
+                <div className="edge-step__index">{step.done ? <CheckOutlined /> : index + 1}</div>
+                <div className="edge-step__body">
+                  <span className="edge-step__label">{step.label}</span>
+                  <span className="edge-step__description">{step.description}</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* 选择状态显示 */}
         <div className="selection-status">
-          <Alert
-            message="节点选择指南"
-            description={
-              <div>
-                <p>1. 点击画布上的节点来选择源节点（第一次点击）</p>
-                <p>2. 再点击另一个节点作为目标节点（第二次点击）</p>
-                <p>3. 重复点击同一节点可以取消选择</p>
-              </div>
-            }
-            type="info"
-            showIcon
-            style={{ marginBottom: 16 }}
-          />
-
-          {selectedSource && (
-            <div className="selected-node">
-              <Title level={5}>源节点</Title>
-              <div className="node-info">
-                <Text strong>{getSourceNode()?.name}</Text>
-                <Text type="secondary"> - {getTypeLabel(getSourceNode()?.type || '')}</Text>
-                <Button
-                  type="link"
-                  size="small"
-                  onClick={() => onNodeDeselect('source')}
-                >
-                  取消选择
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {selectedTarget && (
-            <div className="selected-node">
-              <Title level={5}>目标节点</Title>
-              <div className="node-info">
-                <Text strong>{getTargetNode()?.name}</Text>
-                <Text type="secondary"> - {getTypeLabel(getTargetNode()?.type || '')}</Text>
-                <Button
-                  type="link"
-                  size="small"
-                  onClick={() => onNodeDeselect('target')}
-                >
-                  取消选择
-                </Button>
-              </div>
-            </div>
-          )}
+          <div className="edge-instructions glass-panel">
+            <Text strong>How to select nodes</Text>
+            <ul>
+              <li>Click a node once on the canvas to choose the source.</li>
+              <li>Select a second node to mark it as the target.</li>
+              <li>Click a highlighted node again if you need to clear the selection.</li>
+            </ul>
+          </div>
+          <div className="edge-selection-grid">
+            {renderNodeCard('Source node', getSourceNode(), 'source', 'Click any node to set it as the source.')}
+            {renderNodeCard('Target node', getTargetNode(), 'target', 'Pick another node to receive the output.')}
+          </div>
         </div>
 
-        {/* 配置表单 */}
         {canProceed && (
-          <div className="edge-config-form">
-            <Title level={4}>连接配置</Title>
+          <div className="edge-config-form glass-panel">
+            <Title level={4}>Connection settings</Title>
             <Form
               form={form}
               layout="vertical"
@@ -211,43 +216,39 @@ const EdgeCreationSidebar: React.FC<EdgeCreationSidebarProps> = ({
             >
               <Form.Item
                 name="type"
-                label="连接类型"
-                rules={[{ required: true, message: '请选择连接类型' }]}
+                label="Connection type"
+                rules={[{ required: true, message: 'Please choose a connection type' }]}
               >
-                <Radio.Group onChange={handleEdgeTypeChange} value={edgeType}>
-                  <Space direction="vertical">
+                <Radio.Group onChange={handleEdgeTypeChange} value={edgeType} className="edge-type-group">
+                  <Space direction="vertical" size={12}>
                     <Radio value="hard">
-                      <strong>Hard Edge</strong>
-                      <br />
-                      <Text type="secondary">确定性连接，信息必定传递到目标节点</Text>
+                      <div className="edge-type-item">
+                        <strong>Hard Edge</strong>
+                        <Text type="secondary">Guaranteed delivery — every message is sent to the target node.</Text>
+                      </div>
                     </Radio>
                     <Radio value="soft" disabled>
-                      <strong>Soft Edge</strong>
-                      <br />
-                      <Text type="secondary">条件性连接，根据条件决定是否传递（暂未实现）</Text>
+                      <div className="edge-type-item disabled">
+                        <strong>Soft Edge</strong>
+                        <Text type="secondary">Conditional delivery (coming soon).</Text>
+                      </div>
                     </Radio>
                   </Space>
                 </Radio.Group>
               </Form.Item>
 
-              <Form.Item
-                name="priority"
-                label="优先级"
-              >
-                <Select placeholder="选择连接优先级">
-                  <Option value="high">高优先级</Option>
-                  <Option value="normal">普通优先级</Option>
-                  <Option value="low">低优先级</Option>
+              <Form.Item name="priority" label="Priority">
+                <Select placeholder="Select connection priority">
+                  <Option value="high">High priority</Option>
+                  <Option value="normal">Normal priority</Option>
+                  <Option value="low">Low priority</Option>
                 </Select>
               </Form.Item>
 
-              <Form.Item
-                name="description"
-                label="连接描述"
-              >
-                <TextArea 
-                  rows={3} 
-                  placeholder="描述此连接的用途和信息传递的内容"
+              <Form.Item name="description" label="Description">
+                <TextArea
+                  rows={3}
+                  placeholder="Describe what this connection is responsible for."
                   autoSize={{ minRows: 2, maxRows: 4 }}
                 />
               </Form.Item>
@@ -255,12 +256,12 @@ const EdgeCreationSidebar: React.FC<EdgeCreationSidebarProps> = ({
               {edgeType === 'soft' && (
                 <Form.Item
                   name="condition"
-                  label="触发条件"
-                  rules={[{ required: true, message: '请输入触发条件' }]}
+                  label="Trigger condition"
+                  rules={[{ required: true, message: 'Please provide a condition' }]}
                 >
-                  <TextArea 
-                    rows={3} 
-                    placeholder="输入触发此连接的条件表达式"
+                  <TextArea
+                    rows={3}
+                    placeholder="Provide a condition to trigger this connection."
                     autoSize={{ minRows: 2, maxRows: 4 }}
                   />
                 </Form.Item>
@@ -269,19 +270,16 @@ const EdgeCreationSidebar: React.FC<EdgeCreationSidebarProps> = ({
           </div>
         )}
 
-        {/* 操作按钮 */}
         <div className="sidebar-actions">
           <Space>
-            <Button onClick={handleClose}>
-              取消
-            </Button>
-            <Button 
-              type="primary" 
+            <Button onClick={handleClose}>Cancel</Button>
+            <Button
+              type="primary"
               onClick={handleSubmit}
               loading={loading}
               disabled={!canProceed}
             >
-              创建连接
+              Create Connection
             </Button>
           </Space>
         </div>

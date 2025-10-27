@@ -19,10 +19,11 @@
 .builder-toolbar {
   width: min(1200px, 94vw);
   margin: 0 auto 18px;
-  padding: 20px 28px;
-  border-radius: 24px;
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  box-shadow: 0 26px 70px rgba(12, 18, 34, 0.55);
+  padding: 22px 30px;
+  border-radius: 26px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: linear-gradient(145deg, rgba(16, 24, 37, 0.88), rgba(20, 13, 33, 0.82));
+  box-shadow: 0 30px 80px rgba(12, 18, 34, 0.58);
   display: flex;
   align-items: stretch;
   justify-content: space-between;
@@ -38,13 +39,14 @@
 
 .builder-toolbar__info .ant-typography {
   margin: 0;
+  color: rgba(226, 232, 240, 0.92);
 }
 
 .builder-toolbar__meta {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 14px;
 }
 
 .builder-toolbar__mode {
@@ -70,24 +72,28 @@
   align-items: center;
   gap: 8px;
   border-radius: 14px;
-  background: rgba(148, 163, 184, 0.08);
-  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(148, 163, 184, 0.06);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  color: rgba(226, 232, 240, 0.85);
+  box-shadow: 0 12px 30px rgba(11, 15, 27, 0.45);
 }
 
 .builder-toolbar__actions .ant-btn-primary {
-  background: linear-gradient(120deg, rgba(124, 58, 237, 0.95), rgba(79, 70, 229, 0.95));
+  background: linear-gradient(120deg, rgba(124, 58, 237, 0.96), rgba(56, 189, 248, 0.92));
   border: none;
-  box-shadow: 0 16px 40px rgba(79, 70, 229, 0.45);
+  color: #0b1020;
+  font-weight: 600;
+  box-shadow: 0 18px 44px rgba(79, 70, 229, 0.5);
 }
 
 .builder-toolbar__actions .ant-btn:hover {
   transform: translateY(-2px);
   border-color: rgba(124, 58, 237, 0.45);
-  background: rgba(148, 163, 184, 0.16);
+  background: rgba(148, 163, 184, 0.14);
 }
 
 .builder-toolbar__actions .ant-btn-primary:hover {
-  background: linear-gradient(120deg, rgba(109, 40, 217, 0.95), rgba(67, 56, 202, 0.95));
+  background: linear-gradient(120deg, rgba(109, 40, 217, 0.98), rgba(45, 212, 191, 0.92));
 }
 
 .builder-canvas {

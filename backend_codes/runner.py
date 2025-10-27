@@ -15,6 +15,7 @@ from typing import Dict, List, Any, Optional
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from backend_codes.Teams.simpleTeam import SimpleTeam
+from uuid import uuid4
 
 
 # 1. 实现从config到Team的加载：
@@ -152,6 +153,19 @@ class SimpleTeamRunner:
         # 生成输出
         output = f"团队处理结果: {output_msg}"
 
+        return output
+
+    def process_input_output_streaming(self, user_input: str, config: Dict[str, Any], emit) -> str:
+        """Process user input but emit telemetry events via provided emit callback."""
+        run_id = str(uuid4())
+        team = SimpleTeam(
+            goal=user_input,
+            config=config,
+            emit=emit,
+            run_id=run_id,
+        )
+        output_msg = team.run()
+        output = f"团队处理结果: {output_msg}"
         return output
     
     def run_interactive_session(self):

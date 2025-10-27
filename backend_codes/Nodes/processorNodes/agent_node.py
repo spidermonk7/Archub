@@ -17,10 +17,13 @@ class AgentNode(BaseNode):
                  model_name: str = "gpt-4o-mini", 
                  system_prompt: str = "You are a helpful assistant.", 
                  tools: list = [], 
-                agent_resume = "An AI agent designed to assist with various tasks.", 
-                id = None
+                 agent_resume = "An AI agent designed to assist with various tasks.", 
+                 id = None,
+                 emit=None,
+                 run_id: str | None = None,
+                 team_id: str | None = None,
                  ):
-        super().__init__(name, id)
+        super().__init__(name, id, emit=emit, run_id=run_id, team_id=team_id)
         self.type = "Chat_Agent-Node"
         self.model_name = model_name  
         self.system_prompt = system_prompt
@@ -52,13 +55,24 @@ class AgentNode(BaseNode):
         if not self.received:
             print(f"{self.name} has no data to process.")
             return
-        
+
+        # Emit start once per processing call when there is input
+        try:
+            self.emit({
+                'type': 'node.processing.started',
+                'runId': self.run_id,
+                'teamId': self.team_id,
+                'node': {'id': self.id, 'name': self.name},
+                'meta': {'receivedCount': len(self.received)},
+            })
+        except Exception:
+            pass
+
         for data in self.received:
             data = self.parse_received(data)
             try:
                 print(f"[ATTENTION!]Node {self.type}-{self.name} with model {self.model_name} processing data: \n{data}")
                 processed_data = self.agent.step(data).msgs[0].content
-
             except Exception as e:
                 print(f"Node {self.type}-{self.name} with model {self.model_name} processing error: {e}")
                 processed_data = None
@@ -66,6 +80,24 @@ class AgentNode(BaseNode):
             self.processed.append(processed_data)
             print(f"[SUCCESS!]Node {self.type}-{self.name} with model {self.model_name} finished processing data.")
             print(f"Processed data: \n{processed_data.content}")
+
+        # Emit finished once after completing processing of all inputs
+        try:
+            self.emit({
+                'type': 'node.processing.finished',
+                'runId': self.run_id,
+                'teamId': self.team_id,
+                'node': {'id': self.id, 'name': self.name},
+                'messages': [{
+                    'maker': getattr(m, 'maker', None),
+                    'target': getattr(m, 'target_agent', None),
+                    'timetag': getattr(m, 'timetag', None),
+                    'preview': (getattr(m, 'content', '') or '')[:120],
+                } for m in self.processed[-len(self.received):] if self.received],
+                'meta': {'producedCount': len(self.processed)},
+            })
+        except Exception:
+            pass
 
 
     def show(self):

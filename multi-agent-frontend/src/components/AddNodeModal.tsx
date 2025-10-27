@@ -3,7 +3,8 @@ import { Modal, Steps, Button, Space, Card, Row, Col, Typography, Tag, Divider, 
 import { PlusOutlined, RobotOutlined, BuildOutlined } from '@ant-design/icons';
 import { Node } from '../utils/types';
 import { AgentPoolItem, loadAgentPool, organizeAgentsByCategory } from '../utils/agentPool';
-import NodeModal from './NodeModal'; // 原有的Agent创建逻辑
+import NodeModal from './NodeModal';  // original agent creation flow
+import './AddNodeModal.css';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -20,11 +21,10 @@ const AddNodeModal: React.FC<AddNodeModalProps> = ({ visible, onCancel, onSubmit
   const [currentStep, setCurrentStep] = useState<StepType>('select-type');
   const [selectedNodeType, setSelectedNodeType] = useState<NodeTypeSelection>(null);
   const [agentPool, setAgentPool] = useState<AgentPoolItem[]>([]);
-  // removed selectedAgent (unused)
   const [isCustomModalVisible, setIsCustomModalVisible] = useState(false);
   const [, setLoading] = useState(false);
 
-  // 加载Agent Pool
+  // Load available agents whenever the modal is opened
   useEffect(() => {
     if (visible) {
       loadAgentPoolData();
@@ -46,7 +46,6 @@ const AddNodeModal: React.FC<AddNodeModalProps> = ({ visible, onCancel, onSubmit
   const handleReset = useCallback(() => {
     setCurrentStep('select-type');
     setSelectedNodeType(null);
-    // no-op
     setIsCustomModalVisible(false);
   }, []);
 
@@ -60,29 +59,25 @@ const AddNodeModal: React.FC<AddNodeModalProps> = ({ visible, onCancel, onSubmit
     if (type === 'agent') {
       setCurrentStep('select-agent');
     } else if (type === 'logic') {
-      // Logic Node暂时留空，显示"即将推出"
-      setCurrentStep('select-agent'); // 暂时跳转到agent选择
+      // Logic nodes are not ready yet; keep the flow consistent for now
+      setCurrentStep('select-agent');
     }
   };
 
   const handleAgentSelection = (mode: 'pool' | 'custom') => {
     if (mode === 'custom') {
       setIsCustomModalVisible(true);
-    } else {
-      // Pool模式暂时不做任何操作，等待用户选择具体的Agent
     }
   };
 
   const handlePoolAgentSelect = (agent: AgentPoolItem) => {
-    // 将选中的预定义Agent转换为Node格式并提交
     const node: Omit<Node, 'id'> = {
       name: agent.name,
       type: 'agent',
       description: agent.description,
       config: {
         ...agent.config,
-        // 确保tools字段存在
-        tools: agent.config.tools || []
+        tools: agent.config.tools || [],
       },
       position: {
         x: Math.random() * 400 + 100,
@@ -102,12 +97,12 @@ const AddNodeModal: React.FC<AddNodeModalProps> = ({ visible, onCancel, onSubmit
 
   const getStepItems = () => [
     {
-      title: '选择节点类型',
-      description: '选择要创建的节点类型',
+      title: 'Select node type',
+      description: 'Choose the type of node you want to create',
     },
     {
-      title: '配置节点',
-      description: selectedNodeType === 'agent' ? '选择或创建智能体' : '配置逻辑节点',
+      title: 'Configure node',
+      description: selectedNodeType === 'agent' ? 'Pick or build an agent' : 'Configure logic options',
     },
   ];
 
@@ -116,6 +111,7 @@ const AddNodeModal: React.FC<AddNodeModalProps> = ({ visible, onCancel, onSubmit
   return (
     <>
       <Modal
+        className="add-node-modal"
         title={
           <Space>
             <PlusOutlined />
@@ -126,51 +122,41 @@ const AddNodeModal: React.FC<AddNodeModalProps> = ({ visible, onCancel, onSubmit
         onCancel={handleCancel}
         footer={[
           <Button key="cancel" onClick={handleCancel}>
-            取消
+            Cancel
           </Button>,
-          currentStep === 'select-type' && (
-            <Button key="back" disabled>
-              上一步
-            </Button>
-          ),
           currentStep === 'select-agent' && (
             <Button key="back" onClick={() => setCurrentStep('select-type')}>
-              上一步
+              Back
             </Button>
           ),
         ]}
         width={800}
-        destroyOnClose={true}
+        destroyOnClose
       >
-        <div style={{ padding: '20px 0' }}>
+        <div className="add-node-modal-body">
           <Steps
             current={currentStep === 'select-type' ? 0 : 1}
+            className="add-node-steps"
             items={getStepItems()}
-            style={{ marginBottom: 32 }}
           />
 
           {currentStep === 'select-type' && (
-            <div>
-              <Title level={4}>选择节点类型</Title>
-              <Row gutter={[24, 24]} style={{ marginTop: 20 }}>
+            <div className="node-type-section">
+              <Title level={4}>Choose node type</Title>
+              <Row gutter={[24, 24]} className="node-type-grid">
                 <Col span={12}>
                   <Card
                     hoverable
                     className={`node-type-card ${selectedNodeType === 'logic' ? 'selected' : ''}`}
                     onClick={() => handleTypeSelection('logic')}
-                    style={{
-                      height: 200,
-                      border: selectedNodeType === 'logic' ? '2px solid #1677ff' : '1px solid #d9d9d9',
-                      cursor: 'pointer'
-                    }}
                   >
-                    <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                      <BuildOutlined style={{ fontSize: 48, color: '#722ed1', marginBottom: 16 }} />
-                      <Title level={4} style={{ margin: 0, marginBottom: 8 }}>Logic Node</Title>
+                    <div className="node-type-card__inner">
+                      <BuildOutlined className="node-type-card__icon logic" />
+                      <Title level={4}>Logic Node</Title>
                       <Paragraph type="secondary">
-                        逻辑处理节点，用于数据转换、条件判断和流程控制
+                        Orchestrate data transformations, conditional flows, and control logic.
                       </Paragraph>
-                      <Tag color="purple">即将推出</Tag>
+                      <Tag color="purple">Coming soon</Tag>
                     </div>
                   </Card>
                 </Col>
@@ -179,19 +165,14 @@ const AddNodeModal: React.FC<AddNodeModalProps> = ({ visible, onCancel, onSubmit
                     hoverable
                     className={`node-type-card ${selectedNodeType === 'agent' ? 'selected' : ''}`}
                     onClick={() => handleTypeSelection('agent')}
-                    style={{
-                      height: 200,
-                      border: selectedNodeType === 'agent' ? '2px solid #1677ff' : '1px solid #d9d9d9',
-                      cursor: 'pointer'
-                    }}
                   >
-                    <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                      <RobotOutlined style={{ fontSize: 48, color: '#1677ff', marginBottom: 16 }} />
-                      <Title level={4} style={{ margin: 0, marginBottom: 8 }}>Agent Node</Title>
+                    <div className="node-type-card__inner">
+                      <RobotOutlined className="node-type-card__icon agent" />
+                      <Title level={4}>Agent Node</Title>
                       <Paragraph type="secondary">
-                        AI智能体节点，具有推理能力和工具使用能力的处理单元
+                        AI-driven node with reasoning skills and tool execution capabilities.
                       </Paragraph>
-                      <Tag color="blue">可用</Tag>
+                      <Tag color="blue">Available</Tag>
                     </div>
                   </Card>
                 </Col>
@@ -200,64 +181,46 @@ const AddNodeModal: React.FC<AddNodeModalProps> = ({ visible, onCancel, onSubmit
           )}
 
           {currentStep === 'select-agent' && selectedNodeType === 'agent' && (
-            <div>
-              <Title level={4}>Available Agent Pool</Title>
+            <div className="agent-pool-section">
+              <Title level={4}>Available agents</Title>
               <Paragraph type="secondary">
-                选择预定义的智能体，或创建自定义智能体
+                Choose a predefined agent or create a custom one.
               </Paragraph>
 
               {agentCategories.length > 0 ? (
-                agentCategories.map((category, index) => (
-                  <div key={category.name} style={{ marginBottom: index === agentCategories.length - 1 ? 16 : 24 }}>
-                    <Divider orientation="left" style={{ margin: '16px 0 12px 0' }}>
-                      <Text strong style={{ fontSize: '16px' }}>{category.name}</Text>
+                agentCategories.map(category => (
+                  <div key={category.name} className="agent-category-card">
+                    <Divider orientation="left" className="agent-category-divider">
+                      <Text strong>{category.name}</Text>
                     </Divider>
-                    <Row gutter={[16, 16]}>
+                    <Row gutter={[18, 18]}>
                       {category.agents.map(agent => (
                         <Col span={12} key={agent.id}>
                           <Card
                             hoverable
                             size="small"
-                            style={{ 
-                              height: 140,
-                              cursor: 'pointer',
-                              transition: 'all 0.3s ease'
-                            }}
+                            className="pool-agent-card"
                             onClick={() => handlePoolAgentSelect(agent)}
-                            bodyStyle={{ padding: '12px 16px' }}
                           >
-                            <div>
-                              <Title level={5} style={{ marginBottom: 8, fontSize: '14px' }}>
-                                {agent.name}
-                              </Title>
-                              <Paragraph 
-                                style={{ 
-                                  fontSize: 12, 
-                                  color: '#666', 
-                                  marginBottom: 12,
-                                  height: 36,
-                                  overflow: 'hidden',
-                                  lineHeight: '18px'
-                                }}
-                              >
-                                {agent.description.length > 65 
-                                  ? `${agent.description.substring(0, 65)}...` 
+                            <div className="pool-agent-card__body">
+                              <Title level={5}>{agent.name}</Title>
+                              <Paragraph>
+                                {agent.description.length > 65
+                                  ? `${agent.description.substring(0, 65)}...`
                                   : agent.description}
                               </Paragraph>
-                              <div>
-                                <Tag color="blue" style={{ fontSize: '11px', padding: '1px 6px', marginBottom: '4px' }}>
+                              <div className="pool-agent-card__meta">
+                                <Tag color="blue" className="pool-agent-card__model">
                                   {agent.config.llmModel}
                                 </Tag>
-                                {agent.tags.slice(0, 2).map(tag => (
-                                  <Tag key={tag} style={{ fontSize: '11px', padding: '1px 6px', marginBottom: '4px' }}>
-                                    {tag}
-                                  </Tag>
-                                ))}
-                                {agent.tags.length > 2 && (
-                                  <Tag style={{ fontSize: '11px', padding: '1px 6px', marginBottom: '4px' }}>
-                                    +{agent.tags.length - 2}
-                                  </Tag>
-                                )}
+                                <div className="pool-agent-card__tags">
+                                  {agent.tags.slice(0, 2).map(tag => (
+                                    <Tag key={tag}>{tag}</Tag>
+                                  ))}
+                                  {agent.tags.length > 2 && (
+                                    <Tag className="tag-more">+{agent.tags.length - 2}</Tag>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </Card>
@@ -267,28 +230,23 @@ const AddNodeModal: React.FC<AddNodeModalProps> = ({ visible, onCancel, onSubmit
                   </div>
                 ))
               ) : (
-                <Empty description="暂无可用的智能体" />
+                <Empty description="No agents available" />
               )}
 
-              <Divider orientation="left" style={{ margin: '24px 0 12px 0' }}>
-                <Text strong style={{ fontSize: '16px' }}>自定义选项</Text>
+              <Divider orientation="left" className="agent-category-divider custom">
+                <Text strong>Custom options</Text>
               </Divider>
-              <Row gutter={[16, 16]}>
+              <Row gutter={[18, 18]}>
                 <Col span={12}>
                   <Card
                     hoverable
-                    style={{ 
-                      height: 140,
-                      cursor: 'pointer',
-                      transition: 'all 0.3s ease'
-                    }}
+                    className="custom-agent-card"
                     onClick={() => handleAgentSelection('custom')}
-                    bodyStyle={{ padding: '12px 16px' }}
                   >
-                    <div style={{ textAlign: 'center', padding: '16px 0' }}>
-                      <PlusOutlined style={{ fontSize: 28, color: '#1677ff', marginBottom: 12 }} />
-                      <Title level={5} style={{ margin: 0, marginBottom: 8, fontSize: '14px' }}>Define New Agent</Title>
-                      <Text type="secondary" style={{ fontSize: '12px' }}>创建自定义智能体节点</Text>
+                    <div className="custom-agent-card__inner">
+                      <PlusOutlined className="custom-agent-card__icon" />
+                      <Title level={5}>Define new agent</Title>
+                      <Text type="secondary">Create a tailor-made agent node.</Text>
                     </div>
                   </Card>
                 </Col>
@@ -297,18 +255,17 @@ const AddNodeModal: React.FC<AddNodeModalProps> = ({ visible, onCancel, onSubmit
           )}
 
           {currentStep === 'select-agent' && selectedNodeType === 'logic' && (
-            <div style={{ textAlign: 'center', padding: '60px 0' }}>
-              <BuildOutlined style={{ fontSize: 64, color: '#ccc', marginBottom: 20 }} />
-              <Title level={4} type="secondary">Logic Node</Title>
+            <div className="logic-placeholder">
+              <BuildOutlined />
+              <Title level={4} type="secondary">Logic node</Title>
               <Paragraph type="secondary">
-                逻辑节点功能正在开发中，敬请期待...
+                Logic nodes are under construction. Stay tuned!
               </Paragraph>
             </div>
           )}
         </div>
       </Modal>
 
-      {/* 自定义Agent创建Modal */}
       <NodeModal
         visible={isCustomModalVisible}
         onCancel={() => setIsCustomModalVisible(false)}
