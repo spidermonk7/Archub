@@ -1,0 +1,52 @@
+.attach-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.component-card {
+  cursor: grab;
+}
+
+.component-card:active {
+  cursor: grabbing;
+}
+
+.component-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.component-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.component-icon {
+  font-size: 20px;
+}
+
+.component-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.component-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.component-desc {
+  font-size: 12px;
+}
+
+.coming-soon {
+  opacity: 0.7;
+}
+
+.hint {
+  margin-top: 8px;
+}
+

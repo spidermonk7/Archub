@@ -24,12 +24,15 @@ interface NodeCanvasProps {
   edges: Edge[];
   selectedNodes: string[];
   onNodesSelect: (nodeIds: string[]) => void;
+  onEdgesSelect?: (edgeIds: string[]) => void;
   onNodePositionChange?: (nodeId: string, position: { x: number; y: number }) => void;
   isCreatingEdge?: boolean;
   edgeCreationSource?: string;
   edgeCreationTarget?: string;
   onNodeClick?: (nodeId: string) => void;
+  onEdgeClick?: (edgeId: string) => void;
   mousePosition?: { x: number; y: number };
+  onComponentDrop?: (nodeId: string, component: { type: 'memory' | 'tool'; key: string; payload?: any }) => void;
 }
 
 const getNodeTypeColor = (type: string): string => {
@@ -56,17 +59,31 @@ const CustomNode: React.FC<any> = ({ data, selected }) => {
   const isCreatingEdgeSource = data.isCreatingEdgeSource;
   const isCreatingEdgeTarget = data.isCreatingEdgeTarget;
   const isCreatingEdgeCandidate = data.isCreatingEdgeCandidate;
-  
+
+  const handleDragOver: React.DragEventHandler<HTMLDivElement> = (e) => {
+    if (e.dataTransfer.types.includes('application/x-archub-component')) {
+      e.preventDefault();
+    }
+  };
+
+  const handleDrop: React.DragEventHandler<HTMLDivElement> = (e) => {
+    const json = e.dataTransfer.getData('application/x-archub-component');
+    if (!json) return;
+    try {
+      const comp = JSON.parse(json);
+      if (typeof data.onComponentDrop === 'function') {
+        data.onComponentDrop(data.id, comp);
+      }
+    } catch {}
+  };
+
   return (
     <>
       <Handle
         type="target"
         position={Position.Left}
-        style={{ 
-          background: '#1677ff',
-          opacity: data.type === 'input' ? 0.3 : 1 // 输入节点的target handle半透明
-        }}
-        isConnectable={data.type !== 'input'} // 输入节点不允许连入
+        style={{ background: '#1677ff', opacity: data.type === 'input' ? 0.3 : 1 }}
+        isConnectable={data.type !== 'input'}
       />
       <Card
         size="small"
@@ -77,48 +94,67 @@ const CustomNode: React.FC<any> = ({ data, selected }) => {
           </div>
         }
         className={`custom-node ${selected ? 'selected' : ''} ${isSpecialNode ? 'special-node' : ''} ${
-          isCreatingEdgeSource ? 'creating-edge-source' : 
-          isCreatingEdgeTarget ? 'creating-edge-target' : 
-          isCreatingEdgeCandidate ? 'creating-edge-candidate' : ''
+          isCreatingEdgeSource ? 'creating-edge-source' : isCreatingEdgeTarget ? 'creating-edge-target' : isCreatingEdgeCandidate ? 'creating-edge-candidate' : ''
         }`}
         style={{
           width: 200,
           minHeight: 120,
-          border: isCreatingEdgeSource ? '2px solid #52c41a' :
-                  isCreatingEdgeTarget ? '2px solid #ff4d4f' :
-                  isCreatingEdgeCandidate ? '2px solid #1677ff' :
-                  selected ? '2px solid #1677ff' : 
-                  isSpecialNode ? '2px solid #52c41a' : '1px solid #d9d9d9',
-          boxShadow: isCreatingEdgeSource ? '0 0 0 3px rgba(82, 196, 26, 0.3)' :
-                     isCreatingEdgeTarget ? '0 0 0 3px rgba(255, 77, 79, 0.3)' :
-                     isCreatingEdgeCandidate ? '0 0 0 3px rgba(22, 119, 255, 0.3)' :
-                     selected ? '0 4px 12px rgba(22, 119, 255, 0.3)' : 
-                     isSpecialNode ? '0 4px 12px rgba(82, 196, 26, 0.3)' : '0 2px 8px rgba(0,0,0,0.1)',
+          border: isCreatingEdgeSource
+            ? '2px solid #52c41a'
+            : isCreatingEdgeTarget
+            ? '2px solid #ff4d4f'
+            : isCreatingEdgeCandidate
+            ? '2px solid #1677ff'
+            : selected
+            ? '2px solid #1677ff'
+            : isSpecialNode
+            ? '2px solid #52c41a'
+            : '1px solid #d9d9d9',
+          boxShadow: isCreatingEdgeSource
+            ? '0 0 0 3px rgba(82, 196, 26, 0.3)'
+            : isCreatingEdgeTarget
+            ? '0 0 0 3px rgba(255, 77, 79, 0.3)'
+            : isCreatingEdgeCandidate
+            ? '0 0 0 3px rgba(22, 119, 255, 0.3)'
+            : selected
+            ? '0 4px 12px rgba(22, 119, 255, 0.3)'
+            : isSpecialNode
+            ? '0 4px 12px rgba(82, 196, 26, 0.3)'
+            : '0 2px 8px rgba(0,0,0,0.1)',
           cursor: isCreatingEdgeCandidate ? 'pointer' : 'default',
         }}
         styles={{ body: { padding: '8px 12px' } }}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
       >
         <Tooltip title={data.description}>
           <div className="node-description">
-            {data.description.length > 50 
-              ? `${data.description.substring(0, 50)}...` 
-              : data.description}
+            {data.description.length > 50 ? `${data.description.substring(0, 50)}...` : data.description}
           </div>
         </Tooltip>
-        
+
         {data.config && Object.keys(data.config).length > 0 && (
           <div className="node-config">
             <div className="config-label">配置:</div>
-            {Object.entries(data.config).slice(0, 2).map(([key, value]) => (
-              <div key={key} className="config-item">
-                <span className="config-key">{key}:</span>
-                <span className="config-value">
-                  {String(value).length > 15 ? `${String(value).substring(0, 15)}...` : String(value)}
-                </span>
-              </div>
-            ))}
-            {Object.keys(data.config).length > 2 && (
-              <div className="config-more">...</div>
+            {Object.entries(data.config)
+              .slice(0, 2)
+              .map(([key, value]: any) => (
+                <div key={key} className="config-item">
+                  <span className="config-key">{key}:</span>
+                  <span className="config-value">
+                    {String(value).length > 15 ? `${String(value).substring(0, 15)}...` : String(value)}
+                  </span>
+                </div>
+              ))}
+            {Object.keys(data.config).length > 2 && <div className="config-more">...</div>}
+          </div>
+        )}
+
+        {(data.config?.memory || (Array.isArray(data.config?.tools) && data.config.tools.length > 0)) && (
+          <div className="node-components">
+            {data.config?.memory && <Tag color="purple">Memory: {data.config.memory.type || 'simple'}</Tag>}
+            {Array.isArray(data.config?.tools) && data.config.tools.length > 0 && (
+              <Tag color="geekblue">Tools: {data.config.tools.length}</Tag>
             )}
           </div>
         )}
@@ -126,31 +162,29 @@ const CustomNode: React.FC<any> = ({ data, selected }) => {
       <Handle
         type="source"
         position={Position.Right}
-        style={{ 
-          background: '#1677ff',
-          opacity: data.type === 'output' ? 0.3 : 1 // 输出节点的source handle半透明
-        }}
-        isConnectable={data.type !== 'output'} // 输出节点不允许连出
+        style={{ background: '#1677ff', opacity: data.type === 'output' ? 0.3 : 1 }}
+        isConnectable={data.type !== 'output'}
       />
     </>
   );
 };
 
-const nodeTypes = {
-  custom: CustomNode,
-};
+const nodeTypes = { custom: CustomNode };
 
 const NodeCanvas: React.FC<NodeCanvasProps> = ({
   nodes,
   edges,
   selectedNodes,
   onNodesSelect,
+  onEdgesSelect,
   onNodePositionChange,
   isCreatingEdge = false,
   edgeCreationSource,
   edgeCreationTarget,
   onNodeClick,
+  onEdgeClick,
   mousePosition,
+  onComponentDrop,
 }) => {
   const flowNodes = useMemo(() => {
     return nodes.map((node): FlowNode => ({
@@ -158,26 +192,27 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
       type: 'custom',
       position: node.position,
       data: {
-        ...node,
+        ...node as any,
         typeLabel: getTypeLabel(node.type),
         isCreatingEdgeSource: isCreatingEdge && edgeCreationSource === node.id,
         isCreatingEdgeTarget: isCreatingEdge && edgeCreationTarget === node.id,
-        isCreatingEdgeCandidate: isCreatingEdge && 
-          (!edgeCreationSource || (edgeCreationSource !== node.id && !edgeCreationTarget)),
+        isCreatingEdgeCandidate:
+          isCreatingEdge && (!edgeCreationSource || (edgeCreationSource !== node.id && !edgeCreationTarget)),
+        onComponentDrop,
       },
       selected: selectedNodes.includes(node.id),
-      draggable: !isCreatingEdge, // 仍然在创建模式下禁用拖拽
-      selectable: true, // 允许选择，这样可以响应点击事件
+      draggable: !isCreatingEdge,
+      selectable: true,
     }));
-  }, [nodes, selectedNodes, isCreatingEdge, edgeCreationSource, edgeCreationTarget]);
+  }, [nodes, selectedNodes, isCreatingEdge, edgeCreationSource, edgeCreationTarget, onComponentDrop]);
 
   const flowEdges = useMemo(() => {
     const regularEdges = edges.map((edge): FlowEdge => ({
       id: edge.id,
       source: edge.source,
       target: edge.target,
-      sourceHandle: null,
-      targetHandle: null,
+      sourceHandle: null as any,
+      targetHandle: null as any,
       type: 'smoothstep',
       animated: true,
       style: {
@@ -202,15 +237,11 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
         border: `1px solid ${edge.type === 'hard' ? '#1677ff' : '#52c41a'}`,
         boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
       },
-      labelBgStyle: {
-        fill: 'rgba(255, 255, 255, 0.9)',
-        fillOpacity: 0.9,
-      },
+      labelBgStyle: { fill: 'rgba(255, 255, 255, 0.9)', fillOpacity: 0.9 },
     }));
 
-    // 添加创建中的虚线边
     if (isCreatingEdge && edgeCreationSource && mousePosition) {
-      const sourceNode = nodes.find(n => n.id === edgeCreationSource);
+      const sourceNode = nodes.find((n) => n.id === edgeCreationSource);
       if (sourceNode) {
         const previewEdge: FlowEdge = {
           id: 'preview-edge',
@@ -218,19 +249,9 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
           target: 'preview-target',
           type: 'straight',
           animated: false,
-          style: {
-            stroke: '#1677ff',
-            strokeWidth: 2,
-            strokeDasharray: '10,5',
-            opacity: 0.6,
-          },
-          markerEnd: {
-            type: 'arrowclosed',
-            width: 15,
-            height: 15,
-            color: '#1677ff',
-          },
-        };
+          style: { stroke: '#1677ff', strokeWidth: 2, strokeDasharray: '10,5', opacity: 0.6 },
+          markerEnd: { type: 'arrowclosed', width: 15, height: 15, color: '#1677ff' },
+        } as any;
         regularEdges.push(previewEdge);
       }
     }
@@ -241,7 +262,6 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
   const [reactFlowNodes, setReactFlowNodes, onNodesChange] = useNodesState<FlowNode>([]);
   const [reactFlowEdges, setReactFlowEdges] = useEdgesState<FlowEdge>([]);
 
-  // 当props变化时更新React Flow状态
   useEffect(() => {
     setReactFlowNodes(flowNodes);
   }, [flowNodes, setReactFlowNodes]);
@@ -251,43 +271,38 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
   }, [flowEdges, setReactFlowEdges]);
 
   const onSelectionChange = useCallback(
-    ({ nodes }: { nodes: FlowNode[] }) => {
+    ({ nodes, edges }: { nodes: FlowNode[]; edges: FlowEdge[] }) => {
       if (!isCreatingEdge) {
-        // 普通模式下的节点选择
-        const nodeIds = nodes.map(node => node.id);
+        const nodeIds = nodes.map((node) => node.id);
         onNodesSelect(nodeIds);
+        if (typeof onEdgesSelect === 'function') {
+          const edgeIds = edges.map((e) => e.id);
+          onEdgesSelect(edgeIds);
+        }
       }
-      // 在Edge创建模式下不处理选择变化，让节点点击事件处理
     },
-    [onNodesSelect, isCreatingEdge]
+    [onNodesSelect, onEdgesSelect, isCreatingEdge]
   );
 
   const handleNodeClick = useCallback(
     (event: React.MouseEvent, node: FlowNode) => {
-      if (isCreatingEdge && onNodeClick) {
-        // Edge创建模式下的节点点击
+      if (!onNodeClick) return;
+      if (isCreatingEdge) {
+        // 在创建连线模式下，阻止默认选择行为，仅传递点击给上层处理选点逻辑
         event.stopPropagation();
-        onNodeClick(node.id);
       }
-      // 普通模式下不需要特殊处理，让ReactFlow的默认选择逻辑处理
+      onNodeClick(node.id);
     },
     [isCreatingEdge, onNodeClick]
   );
 
   const handleNodesChange = useCallback(
     (changes: NodeChange[]) => {
-      // 应用ReactFlow的标准节点变化处理
       onNodesChange(changes);
-      
-      // 只在拖动结束时通知父组件（避免频繁更新）
-      const dragEndChanges = changes.filter(change => 
-        change.type === 'position' && change.position && !change.dragging
-      );
-      
+      const dragEndChanges = changes.filter((change) => change.type === 'position' && (change as any).position && !(change as any).dragging);
       if (dragEndChanges.length > 0 && onNodePositionChange) {
-        // 延迟通知，确保拖动完全结束
         setTimeout(() => {
-          dragEndChanges.forEach((change) => {
+          dragEndChanges.forEach((change: any) => {
             if (change.type === 'position' && change.position) {
               onNodePositionChange(change.id, change.position);
             }
@@ -306,31 +321,23 @@ const NodeCanvas: React.FC<NodeCanvasProps> = ({
         onSelectionChange={onSelectionChange}
         onNodesChange={handleNodesChange}
         onNodeClick={handleNodeClick}
+        onEdgeClick={(_, edge) => onEdgeClick && onEdgeClick(edge.id)}
         nodeTypes={nodeTypes}
         connectionMode={ConnectionMode.Loose}
-        nodesDraggable={!isCreatingEdge} // 创建模式下禁用拖拽
+        nodesDraggable={!isCreatingEdge}
         nodesConnectable={false}
         edgesReconnectable={false}
-        elementsSelectable={true} // 始终允许选择
+        elementsSelectable={true}
         fitView
         attributionPosition="bottom-left"
       >
         <Background />
         <Controls />
-        <MiniMap 
-          style={{
-            height: 120,
-            backgroundColor: '#f5f5f5',
-          }}
-          zoomable
-          pannable
-        />
+        <MiniMap style={{ height: 120, backgroundColor: '#f5f5f5' }} zoomable pannable />
         <Panel position="top-left" className="canvas-info">
           <div>节点数量: {nodes.length}</div>
           <div>连接数量: {edges.length}</div>
-          {selectedNodes.length > 0 && (
-            <div>已选择: {selectedNodes.length} 个节点</div>
-          )}
+          {selectedNodes.length > 0 && <div>已选择: {selectedNodes.length} 个节点</div>}
         </Panel>
       </ReactFlow>
     </div>

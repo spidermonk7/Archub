@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Layout, Button, message, Space, Modal, Typography, Tag, Descriptions } from 'antd';
 import { PlusOutlined, LinkOutlined, PlayCircleOutlined, FolderOpenOutlined, CheckCircleOutlined, BuildOutlined, RocketOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
@@ -6,6 +6,8 @@ import NodeCanvas from '../components/NodeCanvas';
 import AddNodeModal from '../components/AddNodeModal';
 import EdgeCreationSidebar from '../components/EdgeCreationSidebar';
 import TeamNamingModal from '../components/TeamNamingModal';
+import ComponentAttachPanel from '../components/ComponentAttachPanel';
+import NodeEdgeInspector from '../components/NodeEdgeInspector';
 import { Node, Edge } from '../utils/types';
 import { validateGraph, formatValidationErrors } from '../utils/graphValidation';
 import { saveNodeConfig, saveEdgeConfig, compileAndSaveGraph, loadFromLocalFile } from '../utils/api';
@@ -27,6 +29,10 @@ const GraphBuilder: React.FC = () => {
   const [isCompiling, setIsCompiling] = useState(false);
   const [isSuccessModalVisible, setIsSuccessModalVisible] = useState(false);
   const [isNamingModalVisible, setIsNamingModalVisible] = useState(false);
+  const [isAttachPanelVisible, setIsAttachPanelVisible] = useState(false);
+  const [selectedEdgeIds, setSelectedEdgeIds] = useState<string[]>([]);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [inspectorMode, setInspectorMode] = useState<'node' | 'edge'>('node');
   const [validationErrorModal, setValidationErrorModal] = useState<{
     visible: boolean;
     title: string;
@@ -95,6 +101,37 @@ const GraphBuilder: React.FC = () => {
     }
   }, []);
 
+  // Handle component drop onto a node
+  const handleComponentDrop = useCallback((nodeId: string, component: { type: 'memory' | 'tool'; key: string; payload?: any }) => {
+    setNodes(prev => prev.map(node => {
+      if (node.id !== nodeId) return node;
+      const next = { ...node, config: { ...(node.config || {}) } } as Node;
+      if (component.type === 'memory') {
+        // Only implement simple memory for now
+        if (component.key === 'simple') {
+          next.config.memory = { type: 'simple' };
+          message.success(`已为节点 “${node.name}” 添加 Simple Memory`);
+        } else {
+          message.info('该内存类型即将推出');
+        }
+      } else if (component.type === 'tool') {
+        if (component.key === 'custom_tool') {
+          message.info('自定义工具即将推出');
+        } else {
+          const tools: string[] = Array.isArray(next.config.tools) ? [...next.config.tools] : [];
+          if (!tools.includes(component.key)) {
+            tools.push(component.key);
+            next.config.tools = tools;
+            message.success(`已为节点 “${node.name}” 添加工具: ${component.key}`);
+          } else {
+            message.warning(`节点 “${node.name}” 已包含工具: ${component.key}`);
+          }
+        }
+      }
+      return next;
+    }));
+  }, []);
+
   const handleEdgeCreationNodeClick = useCallback((nodeId: string) => {
     if (!edgeCreationSource) {
       // 第一次点击，设置源节点
@@ -121,9 +158,19 @@ const GraphBuilder: React.FC = () => {
     if (isEdgeCreationMode) {
       // Edge创建模式下的节点点击
       handleEdgeCreationNodeClick(nodeId);
+      return;
     }
-    // 普通模式下暂时不需要特殊处理，让React Flow的默认选择逻辑处理
+    // 打开节点信息编辑
+    setSelectedNodes([nodeId]);
+    setInspectorMode('node');
+    setInspectorOpen(true);
   }, [isEdgeCreationMode, handleEdgeCreationNodeClick]);
+
+  const handleEdgeClick = useCallback((edgeId: string) => {
+    setSelectedEdgeIds([edgeId]);
+    setInspectorMode('edge');
+    setInspectorOpen(true);
+  }, []);
 
   const handleEdgeCreationNodeDeselect = useCallback((role: 'source' | 'target') => {
     if (role === 'source') {
@@ -321,6 +368,8 @@ const GraphBuilder: React.FC = () => {
     ));
   }, []);
 
+  const nodesForCanvas = useMemo(() => nodes.map(n => ({ ...(n as any), onComponentDrop: handleComponentDrop })), [nodes, handleComponentDrop]);
+
   return (
     <Layout className="graph-builder">
       <Header className="header">
@@ -342,6 +391,11 @@ const GraphBuilder: React.FC = () => {
               {isEdgeCreationMode ? '选择节点创建连接' : '建立连接'}
             </Button>
             <Button
+              onClick={() => setIsAttachPanelVisible(true)}
+            >
+              Attach Component
+            </Button>
+            <Button
               icon={<FolderOpenOutlined />}
               onClick={handleLoadGraph}
             >
@@ -360,16 +414,19 @@ const GraphBuilder: React.FC = () => {
       </Header>
       <Content className="content">
         <NodeCanvas
-          nodes={nodes}
+          nodes={nodesForCanvas as any}
           edges={edges}
           selectedNodes={selectedNodes}
           onNodesSelect={setSelectedNodes}
+          onEdgesSelect={setSelectedEdgeIds}
           onNodePositionChange={handleNodePositionChange}
           isCreatingEdge={isEdgeCreationMode}
           edgeCreationSource={edgeCreationSource}
           edgeCreationTarget={edgeCreationTarget}
           onNodeClick={handleNodeClick}
+          onEdgeClick={handleEdgeClick}
           mousePosition={mousePosition}
+          onComponentDrop={handleComponentDrop}
         />
       </Content>
 
@@ -389,6 +446,43 @@ const GraphBuilder: React.FC = () => {
         selectedTarget={edgeCreationTarget}
         onNodeSelect={handleEdgeCreationNodeClick}
         onNodeDeselect={handleEdgeCreationNodeDeselect}
+      />
+
+      <ComponentAttachPanel
+        visible={isAttachPanelVisible}
+        onClose={() => setIsAttachPanelVisible(false)}
+      />
+
+      <NodeEdgeInspector
+        open={inspectorOpen}
+        mode={inspectorMode}
+        node={inspectorMode === 'node' ? nodes.find(n => n.id === selectedNodes[0]) : undefined}
+        edge={inspectorMode === 'edge' ? edges.find(e => e.id === selectedEdgeIds[0]) : undefined}
+        allNodes={nodes}
+        onClose={() => setInspectorOpen(false)}
+        onSaveNode={(updated) => {
+          setNodes(prev => prev.map(n => n.id === updated.id ? updated : n));
+          setInspectorOpen(false);
+          message.success('节点已保存');
+        }}
+        onDeleteNode={(nodeId) => {
+          setNodes(prev => prev.filter(n => n.id !== nodeId));
+          setEdges(prev => prev.filter(e => e.source !== nodeId && e.target !== nodeId));
+          setSelectedNodes([]);
+          setInspectorOpen(false);
+          message.success('节点已删除');
+        }}
+        onSaveEdge={(updated) => {
+          setEdges(prev => prev.map(e => e.id === updated.id ? updated : e));
+          setInspectorOpen(false);
+          message.success('连接已保存');
+        }}
+        onDeleteEdge={(edgeId) => {
+          setEdges(prev => prev.filter(e => e.id !== edgeId));
+          setSelectedEdgeIds([]);
+          setInspectorOpen(false);
+          message.success('连接已删除');
+        }}
       />
 
       {/* 编译成功对话框 */}

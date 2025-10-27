@@ -125,6 +125,14 @@
   text-align: center;
 }
 
+.node-components {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
 /* 画布信息面板 */
 .canvas-info {
   background: rgba(255, 255, 255, 0.95);
