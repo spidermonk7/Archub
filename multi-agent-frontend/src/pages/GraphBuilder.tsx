@@ -489,9 +489,10 @@ const GraphBuilder: React.FC = () => {
 
       {/* 编译成功对话框 */}
       <Modal
+        className="compile-success-modal"
         title={
-          <Space>
-            <CheckCircleOutlined style={{ color: '#52c41a' }} />
+          <Space align="center" size="middle">
+            <CheckCircleOutlined className="compile-success-icon" />
             团队创建成功！
           </Space>
         }
@@ -502,39 +503,43 @@ const GraphBuilder: React.FC = () => {
         centered
       >
         {compiledTeamInfo && (
-          <div style={{ padding: '20px 0' }}>
-            <Descriptions 
-              title="团队信息" 
-              bordered 
+          <div className="compile-success-body">
+            <Descriptions
+              title="Team Overview"
+              bordered
               column={1}
               labelStyle={{ width: '120px' }}
+              className="compile-summary"
             >
-              <Descriptions.Item label="团队名称">
+              <Descriptions.Item label="Team Name">
                 <Text strong>{compiledTeamInfo.name}</Text>
               </Descriptions.Item>
-              <Descriptions.Item label="节点数量">
-                <Tag color="blue">{compiledTeamInfo.nodeCount} 个智能体</Tag>
+              <Descriptions.Item label="Nodes">
+                <Tag color="blue">{compiledTeamInfo.nodeCount} nodes</Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="连接数量">
-                <Tag color="green">{compiledTeamInfo.edgeCount} 个连接</Tag>
+              <Descriptions.Item label="Edges">
+                <Tag color="green">{compiledTeamInfo.edgeCount} edges</Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="创建时间">
+              <Descriptions.Item label="Compiled at">
                 {formatDate(compiledTeamInfo.compiledAt)}
               </Descriptions.Item>
             </Descriptions>
-            
-            <div style={{ marginTop: '24px', textAlign: 'center' }}>
-              <Title level={4}>选择下一步操作</Title>
-                <Space size="large" style={{ marginTop: '16px' }}>
-                <Button 
+
+            <div className="compile-actions">
+              <Title level={4}>Choose what to do next</Title>
+              <Text type="secondary">
+                Your team is now available in Team Pool. Continue iterating or jump into Python Runner to execute it.
+              </Text>
+              <Space size="large" className="compile-actions__buttons">
+                <Button
                   icon={<BuildOutlined />}
                   onClick={handleKeepBuilding}
                   size="large"
                 >
                   Keep Building More
                 </Button>
-                <Button 
-                  type="primary" 
+                <Button
+                  type="primary"
                   icon={<RocketOutlined />}
                   onClick={handleGoRunning}
                   size="large"

@@ -1,147 +1,149 @@
 import React, { useEffect, useCallback } from 'react';
-import { Modal, Form, Input, Button, Typography, Space } from 'antd';
+import { Modal, Form, Input, Button, Typography, Space, Tag } from 'antd';
 import { TeamOutlined, EditOutlined } from '@ant-design/icons';
+import './TeamNamingModal.css';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 interface TeamNamingModalProps {
-visible: boolean;
-onCancel: () => void;
-onConfirm: (name: string, description: string) => void;
-defaultName?: string;
-defaultDescription?: string;
-nodeCount: number;
-edgeCount: number;
+  visible: boolean;
+  onCancel: () => void;
+  onConfirm: (name: string, description: string) => void;
+  defaultName?: string;
+  defaultDescription?: string;
+  nodeCount: number;
+  edgeCount: number;
 }
 
 const TeamNamingModal: React.FC<TeamNamingModalProps> = ({
-visible,
-onCancel,
-onConfirm,
-defaultName,
-defaultDescription,
-nodeCount,
-edgeCount
+  visible,
+  onCancel,
+  onConfirm,
+  defaultName,
+  defaultDescription,
+  nodeCount,
+  edgeCount,
 }) => {
-const [form] = Form.useForm();
+  const [form] = Form.useForm();
 
-// 生成默认值
-const generateDefaults = useCallback(() => {
+  const generateDefaults = useCallback(() => {
     const now = new Date();
-    const dateStr = now.toLocaleDateString('zh-CN').replace(/\//g, '-');
-    const timeStr = now.toLocaleTimeString('zh-CN', { hour12: false
-}).slice(0, 5);
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = now.toTimeString().slice(0, 5);
 
     return {
-    name: defaultName || `智能体团队-${dateStr}-${timeStr}`,
-    description: defaultDescription || `一个包含 ${nodeCount} 个智能体和 
-${edgeCount} 个连接的多功能团队`
+      name: defaultName || `Autonomous Team ${dateStr}-${timeStr}`,
+      description:
+        defaultDescription ||
+        `An intelligent workflow featuring ${nodeCount} node${nodeCount === 1 ? '' : 's'} and ${edgeCount} connection${edgeCount === 1 ? '' : 's'}.`,
     };
-}, [defaultName, defaultDescription, nodeCount, edgeCount]);
+  }, [defaultName, defaultDescription, nodeCount, edgeCount]);
 
-// 当弹窗打开时，设置默认值
-useEffect(() => {
+  useEffect(() => {
     if (visible) {
-    const defaults = generateDefaults();
-    form.setFieldsValue(defaults);
+      const defaults = generateDefaults();
+      form.setFieldsValue(defaults);
     }
-}, [visible, form, generateDefaults]);
+  }, [visible, form, generateDefaults]);
 
-const handleConfirm = () => {
+  const handleConfirm = () => {
     form.validateFields().then(values => {
-    onConfirm(values.name.trim(), values.description.trim());
-    form.resetFields();
+      onConfirm(values.name.trim(), values.description.trim());
+      form.resetFields();
     });
-};
+  };
 
-const handleCancel = () => {
+  const handleCancel = () => {
     form.resetFields();
     onCancel();
-};
+  };
 
-return (
+  return (
     <Modal
-    title={
-        <Space>
-        <TeamOutlined style={{ color: '#1890ff' }} />
-        为您的团队命名
+      className="team-naming-modal"
+      title={
+        <Space align="center" size="middle">
+          <TeamOutlined className="team-naming-icon" />
+          Name Your Team
         </Space>
-    }
-    open={visible}
-    onCancel={handleCancel}
-    footer={null}
-    width={600}
-    centered
-    destroyOnClose
+      }
+      open={visible}
+      onCancel={handleCancel}
+      footer={null}
+      width={620}
+      centered
+      destroyOnClose
     >
-    <div style={{ padding: '20px 0' }}>
-        <Title level={4} style={{ marginBottom: '16px', color: '#666' }}>
-        <EditOutlined /> 请为新创建的智能体团队设置名称和描述
-        </Title>
+      <div className="team-naming-body">
+        <div className="team-naming-intro">
+          <Title level={4}>Craft a memorable identity</Title>
+          <Text type="secondary">
+            Highlight what this workflow excels at. Your team will appear in Team Pool as soon as you save it.
+          </Text>
+          <div className="team-naming-stats">
+            <Tag>{nodeCount} nodes</Tag>
+            <Tag>{edgeCount} connections</Tag>
+          </div>
+        </div>
 
         <Form
-        form={form}
-        layout="vertical"
-        onFinish={handleConfirm}
+          form={form}
+          layout="vertical"
+          onFinish={handleConfirm}
+          className="team-naming-form"
         >
-        <Form.Item
+          <Form.Item
             name="name"
-            label="团队名称"
+            label="Team name"
             rules={[
-            { required: true, message: '请输入团队名称' },
-            { max: 50, message: '团队名称不能超过50个字符' }
+              { required: true, message: 'Please provide a team name.' },
+              { max: 50, message: 'Team name cannot exceed 50 characters.' },
             ]}
-        >
+          >
             <Input
-            placeholder="请输入团队名称..."
-            showCount
-            maxLength={50}
+              placeholder="e.g. Research Orchestrator"
+              showCount
+              maxLength={50}
+              size="large"
             />
-        </Form.Item>
+          </Form.Item>
 
-        <Form.Item
+          <Form.Item
             name="description"
-            label="团队描述"
+            label="Short description"
             rules={[
-            { required: true, message: '请输入团队描述' },
-            { max: 200, message: '团队描述不能超过200个字符' }
+              { required: true, message: 'Please describe what the team does.' },
+              { max: 200, message: 'Description cannot exceed 200 characters.' },
             ]}
-        >
+          >
             <TextArea
-            placeholder="请描述这个团队的功能和用途..."
-            rows={4}
-            showCount
-            maxLength={200}
+              placeholder="Summarize the use case, persona, or output expectations."
+              rows={4}
+              showCount
+              maxLength={200}
             />
-        </Form.Item>
+          </Form.Item>
 
-        <div style={{ 
-            background: '#f5f5f5', 
-            padding: '12px', 
-            borderRadius: '6px',
-            marginBottom: '24px'
-        }}>
+          <div className="team-naming-hint">
+            <EditOutlined />
             <Text type="secondary">
-            💡
-提示：您可以直接使用默认值，或者自定义更符合团队特色的名称和描述
+              Pro tip: mention the primary task or target user so teammates can spot the right workflow instantly.
             </Text>
-        </div>
+          </div>
 
-        <div style={{ textAlign: 'right' }}>
-            <Space>
-            <Button onClick={handleCancel}>
-                取消
-            </Button>
-            <Button type="primary" htmlType="submit">
-                确认创建
-            </Button>
+          <div className="team-naming-actions">
+            <Space size="middle">
+              <Button onClick={handleCancel}>Cancel</Button>
+              <Button type="primary" htmlType="submit">
+                Save team
+              </Button>
             </Space>
-        </div>
+          </div>
         </Form>
-    </div>
+      </div>
     </Modal>
-);
+  );
 };
 
 export default TeamNamingModal;

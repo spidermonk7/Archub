@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Layout, Typography, Tag, Space, Button, Spin } from 'antd';
+import { Layout, Typography, Tag, Space, Button, Spin, message } from 'antd';
 import {
   TeamOutlined,
   ThunderboltOutlined,
@@ -195,9 +195,38 @@ const TeamPool: React.FC = () => {
   const handleBackHome = () => navigate('/');
   const handleDesignCustom = () => navigate('/builder');
 
-  const navigateToRunTeam = (teamId: string, mode: 'preview' | 'execute') => {
-    navigate('/run-team', { state: { teamId, mode } });
-  };
+  const openRunner = useCallback(async (team: ApiTeam, mode: 'preview' | 'execute') => {
+    try {
+      let config = team.configData;
+
+      if (!config) {
+        const response = await fetch(`${API_BASE_URL}/api/teams/${team.id}`);
+        if (!response.ok) {
+          throw new Error('Unable to load team configuration');
+        }
+        const data = await response.json();
+        if (!data.success || !data.team || !data.team.configData) {
+          throw new Error('Team configuration is missing');
+        }
+        config = data.team.configData as ConfigData;
+      }
+
+      if (!config) {
+        throw new Error('Team configuration is missing');
+      }
+
+      sessionStorage.setItem('selectedTeamConfig', JSON.stringify(config));
+      sessionStorage.setItem('selectedTeamName', config.metadata?.name || team.name || team.id);
+      sessionStorage.setItem('selectedTeamId', team.id);
+      sessionStorage.setItem('selectedTeamFilename', `${team.id}.yaml`);
+      sessionStorage.setItem('selectedTeamMode', mode);
+
+      navigate('/python-runner');
+    } catch (err) {
+      console.error('Failed to open Python Runner', err);
+      message.error('Failed to open Python Runner for this team.');
+    }
+  }, [navigate]);
 
   return (
     <Layout className="team-pool">
@@ -367,13 +396,13 @@ const TeamPool: React.FC = () => {
                       )}
 
                       <div className="team-card__actions">
-                        <Button onClick={() => navigateToRunTeam(team.id, 'preview')}>
+                        <Button onClick={() => openRunner(team, 'preview')}>
                           Preview
                         </Button>
                         <Button
                           type="primary"
                           icon={<PlayCircleOutlined />}
-                          onClick={() => navigateToRunTeam(team.id, 'execute')}
+                          onClick={() => openRunner(team, 'execute')}
                         >
                           Launch
                         </Button>

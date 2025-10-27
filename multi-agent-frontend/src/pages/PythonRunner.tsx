@@ -353,16 +353,18 @@ const PythonRunner: React.FC = () => {
   const checkPreselectedConfig = useCallback(async () => {
     const preselectedConfig = sessionStorage.getItem('selectedTeamConfig');
     const preselectedName = sessionStorage.getItem('selectedTeamName');
-    
+    const preselectedFilename = sessionStorage.getItem('selectedTeamFilename');
+    const preselectedMode = sessionStorage.getItem('selectedTeamMode');
+
     if (preselectedConfig && preselectedName) {
       try {
         const config = JSON.parse(preselectedConfig);
-        
-        // 直接设置配置，不需要通过 API 加载文件
+
         setCurrentConfig(config);
-        setSelectedConfig(preselectedName);
-        
-        // 同时尝试通过API设置后端状态（如果API可用）
+        if (preselectedFilename) {
+          setSelectedConfig(preselectedFilename);
+        }
+
         if (apiStatus === 'connected') {
           try {
             await fetch(`${API_BASE_URL}/set-team-config`, {
@@ -371,18 +373,23 @@ const PythonRunner: React.FC = () => {
               body: preselectedConfig,
             });
           } catch (error) {
-            console.warn('无法通过API设置团队配置，将使用本地配置');
+            console.warn('Unable to sync team config with API, defaulting to local copy.');
           }
         }
-        
-        // 清除sessionStorage中的预选配置
+
         sessionStorage.removeItem('selectedTeamConfig');
         sessionStorage.removeItem('selectedTeamName');
-        
-        message.success(`已加载来自 Team Pool 的配置: ${preselectedName}`);
+        sessionStorage.removeItem('selectedTeamFilename');
+        sessionStorage.removeItem('selectedTeamMode');
+
+        message.success(`Loaded ${preselectedName} from Team Pool.`);
+
+        if (preselectedMode === 'execute') {
+          setUserInput(prev => prev || '');
+        }
       } catch (error) {
-        console.error('解析预选配置失败:', error);
-        message.error('预选配置格式错误');
+        console.error('Failed to parse preselected config', error);
+        message.error('Unable to apply the selected team configuration.');
       }
     }
   }, [apiStatus]);
