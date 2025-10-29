@@ -1,4 +1,4 @@
-import os
+﻿import os
 import sys
 from abc import ABC
 
@@ -71,11 +71,11 @@ class BaseEdge(ABC):
         except Exception:
             pass
 
-    def deliver(self, message, delivered_at: int, scheduled_at: int | None = None) -> None:
+    def deliver(self, message, delivered_at: int) -> None:
         """Deliver previously scheduled messages to the target node."""
         try:
             self.emit({
-                'type': 'edge.message.sent',
+                'type': 'edge.message.delivered',
                 'runId': self.run_id,
                 'teamId': self.team_id,
                 'edge': {
@@ -91,12 +91,7 @@ class BaseEdge(ABC):
                     'content': getattr(m, 'content', ''),
                     'preview': (getattr(m, 'content', '') or '')[:120],
                 } for m in message],
-                'meta': {
-                    'count': len(message),
-                    'deliveredAt': delivered_at,
-                    'scheduledAt': scheduled_at,
-                    'delay': None if scheduled_at is None else max(0, delivered_at - scheduled_at),
-                },
+                'meta': {'count': len(message), 'deliveredAt': delivered_at},
             })
         except Exception:
             pass

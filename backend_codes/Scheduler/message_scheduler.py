@@ -48,34 +48,6 @@ class MessageScheduler:
         self._queue[deliver_at].append(delivery)
 
         try:
-            edge.emit({
-                'type': 'edge.message.sent',
-                'runId': edge.run_id,
-                'teamId': edge.team_id,
-                'edge': {
-                    'id': edge.edge_id,
-                    'source': edge.source_node.id,
-                    'target': edge.target_node.id,
-                    'edgeType': edge.edge_type,
-                },
-                'messages': [{
-                    'maker': getattr(m, 'maker', None),
-                    'target': getattr(m, 'target_agent', None),
-                    'timetag': getattr(m, 'timetag', None),
-                    'content': getattr(m, 'content', ''),
-                    'preview': (getattr(m, 'content', '') or '')[:120],
-                } for m in payload],
-                'meta': {
-                    'count': len(payload),
-                    'scheduledAt': scheduled_at,
-                    'deliverAt': deliver_at,
-                    'delay': max(0, deliver_at - scheduled_at),
-                },
-            })
-        except Exception:
-            pass
-
-        try:
             self.emit({
                 'type': 'edge.message.scheduled',
                 'runId': edge.run_id,
@@ -99,7 +71,12 @@ class MessageScheduler:
     def dispatch(self, tick: int) -> List[ScheduledDelivery]:
         deliveries = self._queue.pop(tick, [])
         for delivery in deliveries:
-            delivery.edge.deliver(delivery.messages, tick)
+            delivery.edge.deliver(
+                delivery.messages,
+                delivered_at=tick,
+                scheduled_at=delivery.scheduled_at,
+            )
+            
         return deliveries
 
     def pending_ticks(self) -> List[int]:
