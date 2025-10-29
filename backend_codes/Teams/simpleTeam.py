@@ -1,5 +1,8 @@
 import sys
 import os
+from collections import defaultdict
+
+from typing import List
 
 from networkx import config, nodes
 
@@ -15,6 +18,7 @@ from utils import parse_team
 import yaml
 from Edges.baseEdge import BaseEdge
 from Tools.Basic.tools_pool import load_tool
+from Scheduler import MessageScheduler
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -52,6 +56,8 @@ class SimpleTeam(BaseTeam):
    
         self.nodes = {}
         self.edges = {}
+        self.edges_by_source = defaultdict(list)
+        self.output_node_id = None
 
 
         self.register_nodes()
@@ -114,6 +120,7 @@ class SimpleTeam(BaseTeam):
                     team_id=self.team_id,
                 )
                 self.nodes[node.id] = node
+                self.output_node_id = node.id
                 print(f"✅ 注册输出节点: {node.name} (ID: {node.id})")
               
             else:
@@ -127,47 +134,35 @@ class SimpleTeam(BaseTeam):
             source_id = edge_config['source']
             target_id = edge_config['target']
             edge_type = edge_config.get('type', 'HARD').upper()
+            delay = edge_config.get('delay', 0)
 
             if source_id in self.nodes and target_id in self.nodes:
                 edge = BaseEdge(
                     source=self.nodes[source_id],
                     target=self.nodes[target_id],
-                    edge_type=edge_type, 
-                    id = None,
+                    edge_type=edge_type,
+                    delay=delay,
+                    id=None,
                     emit=self.emit,
                     run_id=self.run_id,
                     team_id=self.team_id,
                 )
                 self.edges[edge.edge_id] = edge
+                self.edges_by_source[source_id].append(edge)
                 print(f"✅ 注册边: {edge.edge_id} (源: {source_id}, 目标: {target_id}, 类型: {edge_type})")
             else:
                 print(f"❌ 无法注册边: {edge_config} (源或目标节点不存在)") 
-
-    def global_process(self):
-        for node_id, node in self.nodes.items():
-            # Skip nodes that have nothing to process
-            if not getattr(node, 'received', []):
-                continue
-            node.process()
-            node.received = []  # Clear received messages after processing    
-        
-    
-
-
-    def global_communicate(self):
-        for edge_id, edge in self.edges.items():
-            edge.communicate()
-
-        for node_id, node in self.nodes.items():
-            print(f"{node.name} 处理后消息数量: {len(node.processed)}")
-            node.processed = []  # Clear processed messages after communication
-
-
-       
     def run(self):
-        debug_counts = 0
-        # TODO: Ending Condition
-        out_node = self.nodes['output-node']
+        output_id = self.output_node_id or 'output-node'
+        if output_id not in self.nodes:
+            raise ValueError('SimpleTeam requires an output node.')
+        out_node = self.nodes[output_id]
+        scheduler = MessageScheduler(emit=self.emit)
+
+        settings = self.config.get('settings', {}) if isinstance(self.config, dict) else {}
+        max_ticks = settings.get('maxTicks', 50)
+        current_tick = 0
+        idle_ticks = 0
 
         try:
             self.emit({
@@ -179,8 +174,7 @@ class SimpleTeam(BaseTeam):
                     'edgeCount': len(self.edges),
                 }
             })
-            # Initialize all nodes to waiting state for UI
-            for node_id, node in self.nodes.items():
+            for node in self.nodes.values():
                 self.emit({
                     'type': 'node.state.waiting',
                     'runId': self.run_id,
@@ -189,37 +183,87 @@ class SimpleTeam(BaseTeam):
                 })
         except Exception:
             pass
-        while debug_counts < 5:
-            # Color print process stage
-            self.global_process()
-            self.global_communicate()
-            self.check_received_status()
-            if len(out_node.received) > 0:
-                print(f"OutNode received is: {out_node.received}")
-                msg = out_node.received[-1]
-                print(f"Type of msg: {type(msg)}")
-                try:
-                    self.emit({
-                        'type': 'node.state.done',
-                        'runId': self.run_id,
-                        'teamId': self.team_id,
-                        'node': {'id': out_node.id, 'name': out_node.name},
-                    })
-                except Exception:
-                    pass
-                try:
-                    self.emit({
-                        'type': 'team.run.finished',
-                        'runId': self.run_id,
-                        'teamId': self.team_id,
-                        'output': msg.content,
-                    })
-                except Exception:
-                    pass
-                return msg.content
-            debug_counts += 1
-       
-        return "No Output Generated"
+
+        def finalize() -> str | None:
+            if len(getattr(out_node, 'received', [])) == 0:
+                return None
+            msg = out_node.received[-1]
+            try:
+                self.emit({
+                    'type': 'node.state.done',
+                    'runId': self.run_id,
+                    'teamId': self.team_id,
+                    'node': {'id': out_node.id, 'name': out_node.name},
+                })
+            except Exception:
+                pass
+            try:
+                self.emit({
+                    'type': 'team.run.finished',
+                    'runId': self.run_id,
+                    'teamId': self.team_id,
+                    'output': getattr(msg, 'content', msg),
+                })
+            except Exception:
+                pass
+            return getattr(msg, 'content', msg)
+
+        while current_tick < max_ticks:
+            deliveries = scheduler.dispatch(current_tick)
+
+            result = finalize()
+            if result is not None:
+                return result
+
+            processed_sources: List[str] = []
+            for node_id, node in self.nodes.items():
+                if node_id == output_id:
+                    continue
+                if getattr(node, 'received', []):
+                    node.process()
+                    processed_sources.append(node_id)
+                    node.received = []
+
+            for node_id in processed_sources:
+                for edge in self.edges_by_source.get(node_id, []):
+                    edge.communicate(scheduler, current_tick=current_tick)
+                self.nodes[node_id].processed = []
+
+            try:
+                self.emit({
+                    'type': 'scheduler.tick',
+                    'runId': self.run_id,
+                    'teamId': self.team_id,
+                    'tick': current_tick,
+                    'meta': {
+                        'pendingTicks': scheduler.pending_ticks(),
+                        'processedNodeIds': processed_sources,
+                    },
+                })
+            except Exception:
+                pass
+
+            if processed_sources or deliveries or scheduler.has_pending():
+                idle_ticks = 0
+            else:
+                idle_ticks += 1
+                if idle_ticks >= 2:
+                    break
+
+            current_tick += 1
+
+        while scheduler.has_pending() and current_tick < max_ticks:
+            current_tick += 1
+            scheduler.dispatch(current_tick)
+            result = finalize()
+            if result is not None:
+                return result
+
+        result = finalize()
+        if result is not None:
+            return result
+        return 'No Output Generated'
+
 
     def check_received_status(self):
         for node_id, node in self.nodes.items():
