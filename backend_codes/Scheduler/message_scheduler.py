@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Callable, DefaultDict, Iterable, List, Tuple
+from typing import Callable, DefaultDict, Iterable, List
 
 from Edges.baseEdge import BaseEdge
 
@@ -18,6 +18,7 @@ class ScheduledDelivery:
     messages: List
     deliver_at: int
     scheduled_at: int
+    sequence: int
 
 
 class MessageScheduler:
@@ -26,6 +27,7 @@ class MessageScheduler:
     def __init__(self, emit: EmitCallable | None = None) -> None:
         self._queue: DefaultDict[int, List[ScheduledDelivery]] = defaultdict(list)
         self.emit: EmitCallable = emit or (lambda _e: None)
+        self._sequence_counter: int = 0
 
     def schedule(
         self,
@@ -44,8 +46,20 @@ class MessageScheduler:
             messages=payload,
             deliver_at=deliver_at,
             scheduled_at=scheduled_at,
+            sequence=self._sequence_counter,
         )
         self._queue[deliver_at].append(delivery)
+        self._sequence_counter += 1
+
+        try:
+            print(
+                f"[Scheduler] queued edge {edge.edge_id} "
+                f"(source={edge.source_node.id} -> target={edge.target_node.id}) "
+                f"at tick {scheduled_at} for delivery tick {deliver_at} "
+                f"(delay={max(0, deliver_at - scheduled_at)}) with {len(payload)} message(s)"
+            )
+        except Exception:
+            pass
 
         try:
             self.emit({
@@ -69,7 +83,28 @@ class MessageScheduler:
             pass
 
     def dispatch(self, tick: int) -> List[ScheduledDelivery]:
+        if tick not in self._queue:
+            return []
+
+        try:
+            queued = self._queue[tick]
+            preview = sorted(
+                queued,
+                key=lambda d: (d.scheduled_at, d.sequence),
+                reverse=True,
+            )
+            print(
+                f"[Scheduler] dispatching tick {tick} with {len(queued)} pending delivery(ies): "
+                + ", ".join(
+                    f"{delivery.edge.edge_id}(scheduled_at={delivery.scheduled_at},seq={delivery.sequence})"
+                    for delivery in preview
+                )
+            )
+        except Exception:
+            pass
+
         deliveries = self._queue.pop(tick, [])
+        deliveries.sort(key=lambda d: (d.scheduled_at, d.sequence), reverse=True)
         for delivery in deliveries:
             delivery.edge.deliver(
                 delivery.messages,

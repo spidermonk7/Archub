@@ -74,6 +74,16 @@ class BaseEdge(ABC):
     def deliver(self, message, delivered_at: int, scheduled_at: int | None = None) -> None:
         """Deliver previously scheduled messages to the target node."""
         try:
+            print(
+                f"[Scheduler] delivering edge {self.edge_id} "
+                f"(source={self.source_node.id} -> target={self.target_node.id}) "
+                f"scheduled_at={scheduled_at}, delivered_at={delivered_at}, "
+                f"message_count={len(message)}"
+            )
+        except Exception:
+            pass
+
+        try:
             self.emit({
                 'type': 'edge.message.sent',
                 'runId': self.run_id,
