@@ -14,6 +14,7 @@ from Teams.baseTeam import BaseTeam
 from utils import parse_team
 import yaml
 from Edges.baseEdge import BaseEdge
+from Tools.Basic.tools_pool import load_tool
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -42,7 +43,7 @@ class SimpleTeam(BaseTeam):
 
         self.config = config
 
-        print(f"团队配置内容: {self.config}")
+        # print(f"团队配置内容: {self.config}")
 
         self.team_id = self.config.get('name', None)
         self.goal = goal
@@ -61,17 +62,27 @@ class SimpleTeam(BaseTeam):
         for node_config in self.config['nodes']:
             print(f"节点类型: {node_config['type']}")
             if node_config['type'].lower() == 'agent':
-                node = AgentNode(
-                    name = node_config['name'], 
-                    id = node_config.get('id', None), 
-                    model_name = node_config['config'].get('model', 'gpt-4o-mini'),
-                    tools=[], 
-                    system_prompt = node_config['config'].get('systemPrompt', ''),
-                    agent_resume = node_config['config'].get('description', ''),
-                    emit=self.emit,
-                    run_id=self.run_id,
-                    team_id=self.team_id,
-                )
+                tools = []
+                for tool_name in node_config['config'].get('tools', []):
+                    print(f"Trying To Load Tool: {tool_name}")
+                    tool_instances = load_tool(tool_name)
+                    tools.extend(tool_instances)
+                
+                try:
+                    node = AgentNode(
+                        name = node_config['name'], 
+                        id = node_config.get('id', None), 
+                        model_name = node_config['config'].get('model', 'gpt-4o-mini'),
+                        system_prompt = node_config['config'].get('systemPrompt', ''),
+                        agent_resume = node_config['config'].get('description', ''),
+                        emit=self.emit,
+                        run_id=self.run_id,
+                        team_id=self.team_id,
+                        tools = tools,
+                    )
+                except Exception as e:
+                    print(f"❌ 无法创建代理节点: {e}")
+                    continue
 
                 self.nodes[node.id] = node 
                 print(f"✅ 注册节点: {node.name} (ID: {node.id})")

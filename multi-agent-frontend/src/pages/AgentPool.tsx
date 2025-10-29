@@ -35,7 +35,7 @@ const AgentPool: React.FC = () => {
       filtered = filtered.filter(agent =>
         agent.name.toLowerCase().includes(searchLower) ||
         agent.description.toLowerCase().includes(searchLower) ||
-        agent.tags.some(tag => tag.toLowerCase().includes(searchLower))
+        agent.tags.some((tag: string) => tag.toLowerCase().includes(searchLower))
       );
     }
 
@@ -205,7 +205,7 @@ const AgentPool: React.FC = () => {
                           {agent.category}
                         </Tag>
                         <div className="agent-tags">
-                          {agent.tags.slice(0, 3).map(tag => (
+                          {agent.tags.slice(0, 3).map((tag: string) => (
                             <Tag bordered={false} key={tag}>
                               #{tag}
                             </Tag>

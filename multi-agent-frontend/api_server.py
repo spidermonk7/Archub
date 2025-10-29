@@ -238,7 +238,7 @@ def process_input():
         
         # 处理输入并生成输出
         result = current_runner.process_input_output(user_input, current_config)
-        
+        print(f"🔍 DEBUG: result = '{result}'")
         # 生成处理日志
         nodes = current_config.get('nodes', [])
         processing_log = []

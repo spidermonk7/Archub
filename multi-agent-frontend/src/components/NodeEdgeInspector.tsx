@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Drawer, Form, Input, Select, Button, Space, Divider, Typography, Tag, Modal, Card, Row, Col } from 'antd';
+import { Drawer, Form, Input, Select, Button, Space, Divider, Typography, Tag, Modal, Card, Row, Col, InputNumber } from 'antd';
 import { DeleteOutlined, SaveOutlined, CheckOutlined } from '@ant-design/icons';
 import { Node, Edge } from '../utils/types';
 
@@ -91,6 +91,7 @@ const NodeEdgeInspector: React.FC<NodeEdgeInspectorProps> = ({
     if (mode === 'edge' && edge) {
       form.setFieldsValue({
         type: edge.type,
+        delay: edge.delay ?? 0,
         priority: edge.config?.priority || 'normal',
         description: edge.config?.description || '',
         condition: edge.config?.condition || '',
@@ -119,6 +120,7 @@ const NodeEdgeInspector: React.FC<NodeEdgeInspectorProps> = ({
     if (mode === 'edge' && edge) {
       const updated: Edge = {
         ...edge,
+        delay: typeof values.delay === 'number' ? values.delay : 0,
         config: {
           ...(edge.config || {}),
           description: values.description || '',
@@ -418,6 +420,9 @@ const NodeEdgeInspector: React.FC<NodeEdgeInspectorProps> = ({
               <Option value="hard">Hard</Option>
               <Option value="soft" disabled>Soft（暂未实现）</Option>
             </Select>
+          </Form.Item>
+          <Form.Item label="消息延迟 (tick)" name="delay">
+            <InputNumber min={0} precision={0} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item label="优先级" name="priority">
             <Select>

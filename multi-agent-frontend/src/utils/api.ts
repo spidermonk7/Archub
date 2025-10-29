@@ -35,6 +35,7 @@ export const saveEdgeConfig = async (edge: Edge): Promise<void> => {
       source: edge.source,
       target: edge.target,
       type: edge.type,
+      delay: edge.delay ?? 0,
       config: edge.config || {},
     };
 
@@ -185,13 +186,13 @@ const saveToLocalFile = async (config: GraphConfig): Promise<void> => {
     
     console.log('图配置已准备下载到 SourceFiles 目录:', fileName);
     
-    // 显示提示信息
-    setTimeout(() => {
-      const result = window.confirm(`文件 ${fileName} 已下载\n\n为了在 Team Pool 中显示此团队，请将文件保存到项目根目录下的 SourceFiles 文件夹中。\n\n点击"确定"查看详细说明。`);
-      if (result) {
-        window.alert('步骤:\n1. 找到下载的 ' + fileName + ' 文件\n2. 将其移动到项目目录中的 SourceFiles 文件夹\n3. 在 Team Pool 中刷新即可看到新团队');
-      }
-    }, 500);
+    // // 显示提示信息
+    // setTimeout(() => {
+    //   const result = window.confirm(`文件 ${fileName} 已下载\n\n为了在 Team Pool 中显示此团队，请将文件保存到项目根目录下的 SourceFiles 文件夹中。\n\n点击"确定"查看详细说明。`);
+    //   if (result) {
+    //     window.alert('步骤:\n1. 找到下载的 ' + fileName + ' 文件\n2. 将其移动到项目目录中的 SourceFiles 文件夹\n3. 在 Team Pool 中刷新即可看到新团队');
+    //   }
+    // }, 500);
   } catch (error) {
     console.error('保存到本地文件失败:', error);
     throw new Error('Failed to save to local file');

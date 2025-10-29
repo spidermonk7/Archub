@@ -18,6 +18,7 @@ class TeamDatabase:
     
     def init_database(self):
         """初始化数据库表"""
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             
@@ -57,34 +58,46 @@ class TeamDatabase:
             edge_count = len(team_config.get('edges', []))
             version = metadata.get('version', '1.0')
             
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                
-                # 检查是否已存在
-                cursor.execute('SELECT id FROM teams WHERE id = ?', (team_id,))
-                exists = cursor.fetchone()
-                
-                if exists:
-                    # 更新现有团队
-                    cursor.execute('''
-                        UPDATE teams 
-                        SET name = ?, description = ?, config_data = ?, 
-                            node_count = ?, edge_count = ?, version = ?,
-                            updated_at = CURRENT_TIMESTAMP
-                        WHERE id = ?
-                    ''', (name, description, config_json, node_count, edge_count, version, team_id))
-                    print(f"✅ 更新团队: {name} - {description}")
+            def _write():
+                with sqlite3.connect(self.db_path) as conn:
+                    cursor = conn.cursor()
+                    
+                    # 检查是否已存在
+                    cursor.execute('SELECT id FROM teams WHERE id = ?', (team_id,))
+                    exists = cursor.fetchone()
+                    
+                    if exists:
+                        # 更新现有团队
+                        cursor.execute('''
+                            UPDATE teams 
+                            SET name = ?, description = ?, config_data = ?, 
+                                node_count = ?, edge_count = ?, version = ?,
+                                updated_at = CURRENT_TIMESTAMP
+                            WHERE id = ?
+                        ''', (name, description, config_json, node_count, edge_count, version, team_id))
+                        print(f"✅ 更新团队: {name} - {description}")
+                    else:
+                        # 创建新团队
+                        cursor.execute('''
+                            INSERT INTO teams (id, name, description, config_data, 
+                                             node_count, edge_count, version)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                        ''', (team_id, name, description, config_json, node_count, edge_count, version))
+                        print(f"✅ 创建新团队: {name} - {description}")
+                    
+                    conn.commit()
+
+            try:
+                _write()
+            except sqlite3.OperationalError as db_error:
+                if 'no such table' in str(db_error):
+                    print("⚠️ 检测到缺失的数据库表，正在重新初始化数据库结构...")
+                    self.init_database()
+                    _write()
                 else:
-                    # 创建新团队
-                    cursor.execute('''
-                        INSERT INTO teams (id, name, description, config_data, 
-                                         node_count, edge_count, version)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ''', (team_id, name, description, config_json, node_count, edge_count, version))
-                    print(f"✅ 创建新团队: {name} - {description}")
-                
-                conn.commit()
-                return team_id
+                    raise
+
+            return team_id
                 
         except Exception as e:
             print(f"❌ 保存团队失败: {e}")
@@ -93,31 +106,40 @@ class TeamDatabase:
     def get_all_teams(self) -> List[Dict[str, Any]]:
         """获取所有团队"""
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                conn.row_factory = sqlite3.Row  # 使返回结果可以按列名访问
-                cursor = conn.cursor()
-                
-                cursor.execute('''
-                    SELECT * FROM teams 
-                    ORDER BY updated_at DESC
-                ''')
-                
-                teams = []
-                for row in cursor.fetchall():
-                    team = {
-                        'id': row['id'],
-                        'name': row['name'],
-                        'description': row['description'],
-                        'nodeCount': row['node_count'],
-                        'edgeCount': row['edge_count'],
-                        'version': row['version'],
-                        'createdAt': row['created_at'],
-                        'updatedAt': row['updated_at'],
-                        'configData': json.loads(row['config_data'])
-                    }
-                    teams.append(team)
-                
-                return teams
+            def _read():
+                with sqlite3.connect(self.db_path) as conn:
+                    conn.row_factory = sqlite3.Row  # 使返回结果可以按列名访问
+                    cursor = conn.cursor()
+                    
+                    cursor.execute('''
+                        SELECT * FROM teams 
+                        ORDER BY updated_at DESC
+                    ''')
+                    
+                    teams = []
+                    for row in cursor.fetchall():
+                        team = {
+                            'id': row['id'],
+                            'name': row['name'],
+                            'description': row['description'],
+                            'nodeCount': row['node_count'],
+                            'edgeCount': row['edge_count'],
+                            'version': row['version'],
+                            'createdAt': row['created_at'],
+                            'updatedAt': row['updated_at'],
+                            'configData': json.loads(row['config_data'])
+                        }
+                        teams.append(team)
+                    
+                    return teams
+
+            try:
+                return _read()
+            except sqlite3.OperationalError as db_error:
+                if 'no such table' in str(db_error):
+                    self.init_database()
+                    return _read()
+                raise
                 
         except Exception as e:
             print(f"❌ 获取团队列表失败: {e}")
@@ -126,26 +148,35 @@ class TeamDatabase:
     def get_team(self, team_id: str) -> Optional[Dict[str, Any]]:
         """获取指定团队"""
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                conn.row_factory = sqlite3.Row
-                cursor = conn.cursor()
-                
-                cursor.execute('SELECT * FROM teams WHERE id = ?', (team_id,))
-                row = cursor.fetchone()
-                
-                if row:
-                    return {
-                        'id': row['id'],
-                        'name': row['name'],
-                        'description': row['description'],
-                        'nodeCount': row['node_count'],
-                        'edgeCount': row['edge_count'],
-                        'version': row['version'],
-                        'createdAt': row['created_at'],
-                        'updatedAt': row['updated_at'],
-                        'configData': json.loads(row['config_data'])
-                    }
-                return None
+            def _read_one():
+                with sqlite3.connect(self.db_path) as conn:
+                    conn.row_factory = sqlite3.Row
+                    cursor = conn.cursor()
+                    
+                    cursor.execute('SELECT * FROM teams WHERE id = ?', (team_id,))
+                    row = cursor.fetchone()
+                    
+                    if row:
+                        return {
+                            'id': row['id'],
+                            'name': row['name'],
+                            'description': row['description'],
+                            'nodeCount': row['node_count'],
+                            'edgeCount': row['edge_count'],
+                            'version': row['version'],
+                            'createdAt': row['created_at'],
+                            'updatedAt': row['updated_at'],
+                            'configData': json.loads(row['config_data'])
+                        }
+                    return None
+
+            try:
+                return _read_one()
+            except sqlite3.OperationalError as db_error:
+                if 'no such table' in str(db_error):
+                    self.init_database()
+                    return _read_one()
+                raise
                 
         except Exception as e:
             print(f"❌ 获取团队失败: {e}")
@@ -154,17 +185,26 @@ class TeamDatabase:
     def delete_team(self, team_id: str) -> bool:
         """删除团队"""
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute('DELETE FROM teams WHERE id = ?', (team_id,))
-                conn.commit()
-                
-                if cursor.rowcount > 0:
-                    print(f"✅ 删除团队: {team_id}")
-                    return True
-                else:
-                    print(f"⚠️ 团队不存在: {team_id}")
-                    return False
+            def _delete():
+                with sqlite3.connect(self.db_path) as conn:
+                    cursor = conn.cursor()
+                    cursor.execute('DELETE FROM teams WHERE id = ?', (team_id,))
+                    conn.commit()
+                    
+                    if cursor.rowcount > 0:
+                        print(f"✅ 删除团队: {team_id}")
+                        return True
+                    else:
+                        print(f"⚠️ 团队不存在: {team_id}")
+                        return False
+
+            try:
+                return _delete()
+            except sqlite3.OperationalError as db_error:
+                if 'no such table' in str(db_error):
+                    self.init_database()
+                    return _delete()
+                raise
                     
         except Exception as e:
             print(f"❌ 删除团队失败: {e}")
@@ -196,24 +236,33 @@ class TeamDatabase:
     def get_stats(self) -> Dict[str, Any]:
         """获取数据库统计信息"""
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                
-                cursor.execute('SELECT COUNT(*) as total_teams FROM teams')
-                total_teams = cursor.fetchone()[0]
-                
-                cursor.execute('SELECT SUM(node_count) as total_nodes FROM teams')
-                total_nodes = cursor.fetchone()[0] or 0
-                
-                cursor.execute('SELECT SUM(edge_count) as total_edges FROM teams')
-                total_edges = cursor.fetchone()[0] or 0
-                
-                return {
-                    'totalTeams': total_teams,
-                    'totalNodes': total_nodes,
-                    'totalEdges': total_edges,
-                    'databaseSize': self.db_path.stat().st_size if self.db_path.exists() else 0
-                }
+            def _stats():
+                with sqlite3.connect(self.db_path) as conn:
+                    cursor = conn.cursor()
+                    
+                    cursor.execute('SELECT COUNT(*) as total_teams FROM teams')
+                    total_teams = cursor.fetchone()[0]
+                    
+                    cursor.execute('SELECT SUM(node_count) as total_nodes FROM teams')
+                    total_nodes = cursor.fetchone()[0] or 0
+                    
+                    cursor.execute('SELECT SUM(edge_count) as total_edges FROM teams')
+                    total_edges = cursor.fetchone()[0] or 0
+                    
+                    return {
+                        'totalTeams': total_teams,
+                        'totalNodes': total_nodes,
+                        'totalEdges': total_edges,
+                        'databaseSize': self.db_path.stat().st_size if self.db_path.exists() else 0
+                    }
+
+            try:
+                return _stats()
+            except sqlite3.OperationalError as db_error:
+                if 'no such table' in str(db_error):
+                    self.init_database()
+                    return _stats()
+                raise
                 
         except Exception as e:
             print(f"❌ 获取统计信息失败: {e}")

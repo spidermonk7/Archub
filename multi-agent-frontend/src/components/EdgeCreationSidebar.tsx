@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Drawer, Form, Radio, Input, Select, Button, Space, Typography, Tag } from 'antd';
+import { Drawer, Form, Radio, Input, Select, Button, Space, Typography, Tag, InputNumber } from 'antd';
 import { LinkOutlined, CloseOutlined, CheckOutlined, AimOutlined } from '@ant-design/icons';
 import { Node, Edge } from '../utils/types';
 import './EdgeCreationSidebar.css';
@@ -55,6 +55,7 @@ const EdgeCreationSidebar: React.FC<EdgeCreationSidebarProps> = ({
         source: selectedSource,
         target: selectedTarget,
         type: values.type,
+        delay: typeof values.delay === 'number' ? values.delay : 0,
         config: {
           description: values.description || '',
           priority: values.priority || 'normal',
@@ -212,7 +213,7 @@ const EdgeCreationSidebar: React.FC<EdgeCreationSidebarProps> = ({
               form={form}
               layout="vertical"
               requiredMark={false}
-              initialValues={{ type: 'hard', priority: 'normal' }}
+              initialValues={{ type: 'hard', priority: 'normal', delay: 0 }}
             >
               <Form.Item
                 name="type"
@@ -289,3 +290,10 @@ const EdgeCreationSidebar: React.FC<EdgeCreationSidebarProps> = ({
 };
 
 export default EdgeCreationSidebar;
+              <Form.Item
+                name="delay"
+                label="Delivery delay (ticks)"
+                tooltip="How many scheduler ticks to wait before delivering messages along this connection."
+              >
+                <InputNumber min={0} precision={0} style={{ width: '100%' }} />
+              </Form.Item>

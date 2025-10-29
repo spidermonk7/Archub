@@ -17,6 +17,7 @@ export interface Edge {
   source: string;
   target: string;
   type: 'hard' | 'soft';
+  delay?: number;
   config?: {
     [key: string]: any;
   };

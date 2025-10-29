@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Modal, Form, Input, Select, Button, Space, Divider, Card, Row, Col, Typography } from 'antd';
 import { PlusOutlined, CheckOutlined } from '@ant-design/icons';
 import { Node } from '../utils/types';
+import { TOOL_OPTIONS } from '../utils/toolsRegistry';
 import './NodeModal.css';
 
 const { TextArea } = Input;
@@ -22,29 +23,6 @@ const LLM_MODELS = [
   { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
   { value: 'claude-3-sonnet', label: 'Claude 3 Sonnet' },
   { value: 'claude-3-haiku', label: 'Claude 3 Haiku' },
-];
-
-// 定义系统支持的工具
-const AVAILABLE_TOOLS = [
-  {
-    value: 'math',
-    label: 'Math Calculator',
-    description: '执行数学计算和公式求解',
-    icon: '🧮'
-  },
-  {
-    value: 'code_executor',
-    label: 'Code Executor',
-    description: '执行Python代码并返回结果',
-    icon: '💻'
-  },
-  {
-    value: 'custom_tool',
-    label: 'Create Your Own Tool',
-    description: '创建自定义工具以扩展智能体能力',
-    icon: '🔧',
-    isCustom: true
-  },
 ];
 
 // 定义输入数据类型
@@ -134,12 +112,6 @@ const NodeModal: React.FC<NodeModalProps> = ({ visible, onCancel, onSubmit }) =>
   }, [form]);
 
   const handleToolToggle = useCallback((toolValue: string) => {
-    // 如果点击的是自定义工具选项，暂时显示提示
-    if (toolValue === 'custom_tool') {
-      console.log('Create your own tool - Coming Soon!');
-      return;
-    }
-
     setSelectedTools(prev => {
       const newSelectedTools = prev.includes(toolValue)
         ? prev.filter(tool => tool !== toolValue)
@@ -504,13 +476,13 @@ const NodeModal: React.FC<NodeModalProps> = ({ visible, onCancel, onSubmit }) =>
                   Select the tools this agent can use (multi-select).
                 </Text>
                 <Row gutter={[12, 12]}>
-                  {AVAILABLE_TOOLS.map(tool => (
+                  {TOOL_OPTIONS.map(tool => (
                     <Col span={12} key={tool.value}>
                       <Card
                         size="small"
-                        hoverable={!tool.isCustom}
-                        className={`tool-card ${selectedTools.includes(tool.value) ? 'tool-card--selected' : ''} ${tool.isCustom ? 'tool-card--custom' : ''}`}
-                        onClick={() => handleToolToggle(tool.value)}
+                        hoverable={!tool.comingSoon}
+                        className={`tool-card ${selectedTools.includes(tool.value) ? 'tool-card--selected' : ''} ${tool.comingSoon ? 'tool-card--custom' : ''}`}
+                        onClick={() => !tool.comingSoon && handleToolToggle(tool.value)}
                       >
                         <div className="tool-card__body">
                           <div className="tool-card__main">
@@ -522,10 +494,10 @@ const NodeModal: React.FC<NodeModalProps> = ({ visible, onCancel, onSubmit }) =>
                               </Text>
                             </div>
                           </div>
-                          {!tool.isCustom && selectedTools.includes(tool.value) && (
+                          {!tool.comingSoon && selectedTools.includes(tool.value) && (
                             <CheckOutlined className="tool-card__check" />
                           )}
-                          {tool.isCustom && (
+                          {tool.comingSoon && (
                             <span className="tool-card__status">Coming soon</span>
                           )}
                         </div>
@@ -538,7 +510,7 @@ const NodeModal: React.FC<NodeModalProps> = ({ visible, onCancel, onSubmit }) =>
                     <Text type="secondary">
                       Selected {selectedTools.length} item(s):{' '}
                       {selectedTools
-                        .map(tool => AVAILABLE_TOOLS.find(t => t.value === tool)?.label)
+                        .map(tool => TOOL_OPTIONS.find(t => t.value === tool)?.label)
                         .filter((label): label is string => Boolean(label))
                         .join(', ')}
                     </Text>

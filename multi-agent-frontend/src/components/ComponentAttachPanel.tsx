@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Drawer, Tabs, Card, Row, Col, Typography, Tag } from 'antd';
+import { TOOL_OPTIONS } from '../utils/toolsRegistry';
 import './ComponentAttachPanel.css';
 
 const { Text } = Typography;
@@ -10,12 +11,6 @@ export interface ComponentAttachPanelProps {
 }
 
 type ComponentDrag = { type: 'memory' | 'tool'; key: string; payload?: any };
-
-const AVAILABLE_TOOLS = [
-  { value: 'math', label: 'Math Calculator', description: 'Execute numeric calculations and evaluate expressions.', icon: '🧮' },
-  { value: 'code_executor', label: 'Code Executor', description: 'Run Python snippets and return their output.', icon: '💻' },
-  { value: 'custom_tool', label: 'Create Your Own Tool', description: 'Build a bespoke tool to extend this agent (coming soon).', icon: '🧩', comingSoon: true },
-];
 
 const ComponentAttachPanel: React.FC<ComponentAttachPanelProps> = ({ visible, onClose }) => {
   const memoryCards = useMemo(() => ([
@@ -57,7 +52,7 @@ const ComponentAttachPanel: React.FC<ComponentAttachPanelProps> = ({ visible, on
 
   const toolsTab = (
     <Row gutter={[12, 12]}>
-      {AVAILABLE_TOOLS.map(tool => (
+      {TOOL_OPTIONS.map(tool => (
         <Col span={24} key={tool.value}>
           <Card
             size="small"
