@@ -18,6 +18,7 @@ from utils import parse_team
 import yaml
 from Edges.baseEdge import BaseEdge
 from Tools.Basic.tools_pool import load_tool
+from Nodes.logicNodes.goThroughNode import GoThroughNode
 from Scheduler import MessageScheduler
 
 from dotenv import load_dotenv
@@ -111,6 +112,28 @@ class SimpleTeam(BaseTeam):
 
                 self.nodes[node.id] = node
                 print(f"✅ 注册输入节点: {node.name} (ID: {node.id})")
+            elif node_config['type'].lower() == 'logic':
+                logic_type = node_config.get('config', {}).get('logicType', 'go-through').lower()
+                try:
+                    if logic_type in ('go-through', 'go_through', 'gothrough'):
+                        node = GoThroughNode(
+                            name=node_config['name'],
+                            id=node_config.get('id', None),
+                            emit=self.emit,
+                            run_id=self.run_id,
+                            team_id=self.team_id,
+                            logic_type=logic_type,
+                        )
+                    else:
+                        print(f"⚠️ 未知的逻辑节点类型: {logic_type}")
+                        continue
+                except Exception as e:
+                    print(f"⚠️ 无法创建逻辑节点: {e}")
+                    continue
+
+                self.nodes[node.id] = node
+                print(f"✅ 注册逻辑节点: {node.name} (ID: {node.id}, 类型: {logic_type})")
+
             elif node_config['type'].lower() == 'output':
                 node = BaseProcedureNode(
                     name = node_config['name'], 
@@ -187,7 +210,8 @@ class SimpleTeam(BaseTeam):
         def finalize() -> str | None:
             if len(getattr(out_node, 'received', [])) == 0:
                 return None
-            msg = out_node.received[-1]
+            # msg = out_node.received[-1]
+            msg = '\n'.join([getattr(m, 'content', str(m)) for m in out_node.received])
             try:
                 self.emit({
                     'type': 'node.state.done',
@@ -202,11 +226,11 @@ class SimpleTeam(BaseTeam):
                     'type': 'team.run.finished',
                     'runId': self.run_id,
                     'teamId': self.team_id,
-                    'output': getattr(msg, 'content', msg),
+                    'output': msg
                 })
             except Exception:
                 pass
-            return getattr(msg, 'content', msg)
+            return msg
 
         while current_tick < max_ticks:
             deliveries = scheduler.dispatch(current_tick)

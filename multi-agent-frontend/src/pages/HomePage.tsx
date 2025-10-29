@@ -110,7 +110,7 @@ const HomePage: React.FC = () => {
                   <ExperimentOutlined className="highlight-icon" />
                   <div>
                     <span className="highlight-label">Real-time Execution Engine</span>
-                    <span className="highlight-value">Adaptive Reasoning Chains</span>
+                    <span className="highlight-value">Adaptive Language Model Workflow</span>
                   </div>
                 </div>
                 <div className="signal-grid">

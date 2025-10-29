@@ -117,6 +117,9 @@ const getNodeTypeColor = (type: string): string => {
     agent: 'blue',
     tool: 'green',
     coordinator: 'purple',
+    logic: 'purple',
+    input: 'cyan',
+    output: 'orange',
     default: 'default',
   };
   return colors[type] || colors.default;
@@ -132,11 +135,12 @@ const RunningNodeCanvas: React.FC<RunningNodeCanvasProps> = ({
 }) => {
   function getTypeLabel(type: string): string {
     const labels: Record<string, string> = {
-      agent: '智能体',
-      tool: '工具',
-      coordinator: '协调器',
-      input: '输入',
-      output: '输出',
+      agent: 'Agent',
+      tool: 'Tool',
+      coordinator: 'Coordinator',
+      logic: 'Logic',
+      input: 'Input',
+      output: 'Output',
     };
     return labels[type] || type;
   }

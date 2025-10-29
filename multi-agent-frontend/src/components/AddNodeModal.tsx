@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { Modal, Steps, Button, Space, Card, Row, Col, Typography, Tag, Divider, Empty } from 'antd';
 import { PlusOutlined, RobotOutlined, BuildOutlined } from '@ant-design/icons';
 import { Node } from '../utils/types';
@@ -8,13 +8,22 @@ import './AddNodeModal.css';
 
 const { Title, Text, Paragraph } = Typography;
 
+const LOGIC_NODE_PRESETS = [
+  {
+    key: 'go-through',
+    name: 'Go Through',
+    description: 'Pass messages onward unchanged to the next node.',
+    details: 'Use this to mirror residual connections or inspect message payloads without modifying them.',
+  },
+];
+
 interface AddNodeModalProps {
   visible: boolean;
   onCancel: () => void;
   onSubmit: (node: Omit<Node, 'id'>) => void;
 }
 
-type StepType = 'select-type' | 'select-agent' | 'create-custom';
+type StepType = 'select-type' | 'select-agent' | 'select-logic' | 'create-custom';
 type NodeTypeSelection = 'logic' | 'agent' | null;
 
 const AddNodeModal: React.FC<AddNodeModalProps> = ({ visible, onCancel, onSubmit }) => {
@@ -59,8 +68,7 @@ const AddNodeModal: React.FC<AddNodeModalProps> = ({ visible, onCancel, onSubmit
     if (type === 'agent') {
       setCurrentStep('select-agent');
     } else if (type === 'logic') {
-      // Logic nodes are not ready yet; keep the flow consistent for now
-      setCurrentStep('select-agent');
+      setCurrentStep('select-logic');
     }
   };
 
@@ -89,6 +97,24 @@ const AddNodeModal: React.FC<AddNodeModalProps> = ({ visible, onCancel, onSubmit
     handleReset();
   };
 
+  const handleLogicNodeSelect = (preset: typeof LOGIC_NODE_PRESETS[number]) => {
+    const node: Omit<Node, 'id'> = {
+      name: preset.name,
+      type: 'logic',
+      description: preset.description,
+      config: {
+        logicType: preset.key,
+      },
+      position: {
+        x: Math.random() * 400 + 100,
+        y: Math.random() * 300 + 100,
+      },
+    };
+
+    onSubmit(node);
+    handleReset();
+  };
+
   const handleCustomAgentSubmit = (node: Omit<Node, 'id'>) => {
     setIsCustomModalVisible(false);
     onSubmit(node);
@@ -101,8 +127,13 @@ const AddNodeModal: React.FC<AddNodeModalProps> = ({ visible, onCancel, onSubmit
       description: 'Choose the type of node you want to create',
     },
     {
-      title: 'Configure node',
-      description: selectedNodeType === 'agent' ? 'Pick or build an agent' : 'Configure logic options',
+      title: selectedNodeType === 'logic' ? 'Choose logic behaviour' : 'Configure node',
+      description:
+        selectedNodeType === 'agent'
+          ? 'Pick or build an agent'
+          : selectedNodeType === 'logic'
+          ? 'Pick a logic node to drop into the graph'
+          : 'Configure node options',
     },
   ];
 
@@ -124,7 +155,7 @@ const AddNodeModal: React.FC<AddNodeModalProps> = ({ visible, onCancel, onSubmit
           <Button key="cancel" onClick={handleCancel}>
             Cancel
           </Button>,
-          currentStep === 'select-agent' && (
+          currentStep !== 'select-type' && (
             <Button key="back" onClick={() => setCurrentStep('select-type')}>
               Back
             </Button>
@@ -156,7 +187,7 @@ const AddNodeModal: React.FC<AddNodeModalProps> = ({ visible, onCancel, onSubmit
                       <Paragraph type="secondary">
                         Orchestrate data transformations, conditional flows, and control logic.
                       </Paragraph>
-                      <Tag color="purple">Coming soon</Tag>
+                      <Tag color="purple">Available</Tag>
                     </div>
                   </Card>
                 </Col>
@@ -254,13 +285,35 @@ const AddNodeModal: React.FC<AddNodeModalProps> = ({ visible, onCancel, onSubmit
             </div>
           )}
 
-          {currentStep === 'select-agent' && selectedNodeType === 'logic' && (
-            <div className="logic-placeholder">
-              <BuildOutlined />
-              <Title level={4} type="secondary">Logic node</Title>
+          {currentStep === 'select-logic' && selectedNodeType === 'logic' && (
+            <div className="logic-node-section">
+              <Title level={4}>Available logic nodes</Title>
               <Paragraph type="secondary">
-                Logic nodes are under construction. Stay tuned!
+                Drop-in logic components that forward or transform messages without invoking an LLM.
               </Paragraph>
+              <Row gutter={[18, 18]}>
+                {LOGIC_NODE_PRESETS.map((preset) => (
+                  <Col span={12} key={preset.key}>
+                    <Card
+                      hoverable
+                      className="logic-node-card"
+                      onClick={() => handleLogicNodeSelect(preset)}
+                    >
+                      <div className="logic-node-card__inner">
+                        <BuildOutlined className="logic-node-card__icon" />
+                        <div className="logic-node-card__content">
+                          <Title level={5}>{preset.name}</Title>
+                          <Paragraph type="secondary">{preset.description}</Paragraph>
+                          <Paragraph type="secondary" className="logic-node-card__details">
+                            {preset.details}
+                          </Paragraph>
+                        </div>
+                        <Tag color="purple" bordered={false}>Tap to add</Tag>
+                      </div>
+                    </Card>
+                  </Col>
+                ))}
+              </Row>
             </div>
           )}
         </div>

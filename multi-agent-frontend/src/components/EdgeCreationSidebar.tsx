@@ -36,6 +36,7 @@ const EdgeCreationSidebar: React.FC<EdgeCreationSidebarProps> = ({
       input: 'Input',
       output: 'Output',
       agent: 'Agent',
+      logic: 'Logic',
     };
     return labels[type] || type;
   };

@@ -40,6 +40,7 @@ const getNodeTypeColor = (type: string): string => {
     input: 'cyan',
     output: 'orange',
     agent: 'blue',
+    logic: 'purple',
     default: 'default',
   };
   return colors[type] || colors.default;
@@ -50,6 +51,7 @@ const getTypeLabel = (type: string): string => {
     input: 'Input',
     output: 'Output',
     agent: 'Agent',
+    logic: 'Logic',
   };
   return labels[type] || type;
 };

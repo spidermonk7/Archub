@@ -229,22 +229,46 @@
   color: #60a5fa;
 }
 
-.logic-placeholder {
-  text-align: center;
-  padding: 80px 0;
+ .logic-node-section {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 16px;
+  gap: 18px;
 }
 
-.logic-placeholder .anticon {
-  font-size: 60px;
-  color: rgba(148, 163, 184, 0.45);
+.logic-node-card {
+  border-radius: 18px !important;
+  background: rgba(18, 21, 32, 0.92) !important;
+  border: 1px solid rgba(148, 163, 184, 0.18) !important;
+  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
-.logic-placeholder .ant-typography {
-  margin: 0;
+.logic-node-card:hover {
+  border-color: rgba(124, 58, 237, 0.55) !important;
+  box-shadow: 0 22px 52px rgba(12, 18, 34, 0.55);
+  transform: translateY(-4px);
+}
+
+.logic-node-card__inner {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 180px;
+}
+
+.logic-node-card__icon {
+  font-size: 40px;
+  color: #a855f7;
+}
+
+.logic-node-card__content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.logic-node-card__details {
+  font-size: 12px;
+  margin-bottom: 0;
 }
 
 .tag-more {
