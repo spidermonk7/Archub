@@ -208,6 +208,27 @@
   color: rgba(226, 232, 240, 0.9);
 }
 
+.edge-config-form .ant-input,
+.edge-config-form .ant-input-number,
+.edge-config-form .ant-input-number-input {
+  background: rgba(16, 23, 38, 0.72);
+  color: rgba(226, 232, 240, 0.92);
+  border-color: rgba(148, 163, 184, 0.16);
+}
+
+.edge-config-form .ant-input:focus,
+.edge-config-form .ant-input-focused,
+.edge-config-form .ant-input-number:focus,
+.edge-config-form .ant-input-number-focused {
+  border-color: rgba(124, 58, 237, 0.55);
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+}
+
+.edge-config-form .ant-input::placeholder,
+.edge-config-form .ant-input-number-input::placeholder {
+  color: rgba(166, 183, 207, 0.7);
+}
+
 .edge-type-group .ant-radio-wrapper {
   padding: 12px 14px;
   border-radius: 14px;
