@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
-import { Drawer, Form, Radio, Input, Select, Button, Space, Typography, Tag, InputNumber } from 'antd';
+import { Drawer, Form, Radio, Input, Button, Space, Typography, Tag, InputNumber } from 'antd';
 import { LinkOutlined, CloseOutlined, CheckOutlined, AimOutlined } from '@ant-design/icons';
 import { Node, Edge } from '../utils/types';
 import './EdgeCreationSidebar.css';
 
 const { TextArea } = Input;
 const { Text, Title } = Typography;
-const { Option } = Select;
-
 interface EdgeCreationSidebarProps {
   visible: boolean;
   onClose: () => void;
@@ -58,7 +56,6 @@ const EdgeCreationSidebar: React.FC<EdgeCreationSidebarProps> = ({
         delay: typeof values.delay === 'number' ? values.delay : 0,
         config: {
           description: values.description || '',
-          priority: values.priority || 'normal',
           condition: values.condition || '',
         },
       };
@@ -206,71 +203,73 @@ const EdgeCreationSidebar: React.FC<EdgeCreationSidebarProps> = ({
           </div>
         </div>
 
-        {canProceed && (
-          <div className="edge-config-form glass-panel">
-            <Title level={4}>Connection settings</Title>
-            <Form
-              form={form}
-              layout="vertical"
-              requiredMark={false}
-              initialValues={{ type: 'hard', priority: 'normal', delay: 0 }}
+        <div className="edge-config-form glass-panel">
+          <Title level={4}>Connection settings</Title>
+          {!canProceed && (
+            <Text type="secondary">Select both source and target nodes to enable scheduling and metadata editing.</Text>
+          )}
+          <Form
+            form={form}
+            layout="vertical"
+            requiredMark={false}
+            initialValues={{ type: 'hard', delay: 0 }}
+            disabled={!canProceed}
+          >
+            <Form.Item
+              name="type"
+              label="Connection type"
+              rules={[{ required: true, message: 'Please choose a connection type' }]}
             >
+              <Radio.Group onChange={handleEdgeTypeChange} value={edgeType} className="edge-type-group">
+                <Space direction="vertical" size={12}>
+                  <Radio value="hard">
+                    <div className="edge-type-item">
+                      <strong>Hard Edge</strong>
+                      <Text type="secondary">Guaranteed delivery - every message is sent to the target node.</Text>
+                    </div>
+                  </Radio>
+                  <Radio value="soft" disabled>
+                    <div className="edge-type-item disabled">
+                      <strong>Soft Edge</strong>
+                      <Text type="secondary">Conditional delivery (coming soon).</Text>
+                    </div>
+                  </Radio>
+                </Space>
+              </Radio.Group>
+            </Form.Item>
+
+            <Form.Item
+              name="delay"
+              label="Delivery delay (ticks)"
+              tooltip="How many scheduler ticks to wait before delivering messages along this connection."
+              rules={[{ type: 'number', min: 0, message: 'Delay must be zero or greater' }]}
+            >
+              <InputNumber min={0} precision={0} style={{ width: '100%' }} />
+            </Form.Item>
+
+            <Form.Item name="description" label="Description">
+              <TextArea
+                rows={3}
+                placeholder="Describe what this connection is responsible for."
+                autoSize={{ minRows: 2, maxRows: 4 }}
+              />
+            </Form.Item>
+
+            {edgeType === 'soft' && (
               <Form.Item
-                name="type"
-                label="Connection type"
-                rules={[{ required: true, message: 'Please choose a connection type' }]}
+                name="condition"
+                label="Trigger condition"
+                rules={[{ required: true, message: 'Please provide a condition' }]}
               >
-                <Radio.Group onChange={handleEdgeTypeChange} value={edgeType} className="edge-type-group">
-                  <Space direction="vertical" size={12}>
-                    <Radio value="hard">
-                      <div className="edge-type-item">
-                        <strong>Hard Edge</strong>
-                        <Text type="secondary">Guaranteed delivery — every message is sent to the target node.</Text>
-                      </div>
-                    </Radio>
-                    <Radio value="soft" disabled>
-                      <div className="edge-type-item disabled">
-                        <strong>Soft Edge</strong>
-                        <Text type="secondary">Conditional delivery (coming soon).</Text>
-                      </div>
-                    </Radio>
-                  </Space>
-                </Radio.Group>
-              </Form.Item>
-
-              <Form.Item name="priority" label="Priority">
-                <Select placeholder="Select connection priority">
-                  <Option value="high">High priority</Option>
-                  <Option value="normal">Normal priority</Option>
-                  <Option value="low">Low priority</Option>
-                </Select>
-              </Form.Item>
-
-              <Form.Item name="description" label="Description">
                 <TextArea
                   rows={3}
-                  placeholder="Describe what this connection is responsible for."
+                  placeholder="Provide a condition to trigger this connection."
                   autoSize={{ minRows: 2, maxRows: 4 }}
                 />
               </Form.Item>
-
-              {edgeType === 'soft' && (
-                <Form.Item
-                  name="condition"
-                  label="Trigger condition"
-                  rules={[{ required: true, message: 'Please provide a condition' }]}
-                >
-                  <TextArea
-                    rows={3}
-                    placeholder="Provide a condition to trigger this connection."
-                    autoSize={{ minRows: 2, maxRows: 4 }}
-                  />
-                </Form.Item>
-              )}
-            </Form>
-          </div>
-        )}
-
+            )}
+          </Form>
+        </div>
         <div className="sidebar-actions">
           <Space>
             <Button onClick={handleClose}>Cancel</Button>
@@ -290,10 +289,3 @@ const EdgeCreationSidebar: React.FC<EdgeCreationSidebarProps> = ({
 };
 
 export default EdgeCreationSidebar;
-              <Form.Item
-                name="delay"
-                label="Delivery delay (ticks)"
-                tooltip="How many scheduler ticks to wait before delivering messages along this connection."
-              >
-                <InputNumber min={0} precision={0} style={{ width: '100%' }} />
-              </Form.Item>
