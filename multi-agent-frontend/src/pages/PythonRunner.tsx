@@ -20,6 +20,7 @@ interface ConfigFile {
   nodeCount?: number;
   edgeCount?: number;
   error?: string;
+  origin?: 'default' | 'user' | string;
 }
 
 const PythonRunner: React.FC = () => {
@@ -456,8 +457,13 @@ const PythonRunner: React.FC = () => {
             >
               {availableConfigs.map(config => (
                 <Option key={config.filename} value={config.filename}>
-                  <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <strong>{config.name}</strong>
+                    {config.origin === 'default' && (
+                      <Tag color="geekblue" bordered={false} style={{ marginInlineStart: 0 }}>
+                        Default
+                      </Tag>
+                    )}
                     {config.error ? (
                       <Text type="danger"> (加载错误)</Text>
                     ) : (

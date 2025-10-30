@@ -7,9 +7,10 @@
 import sqlite3
 import json
 import yaml
+import re
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Set
 
 class TeamDatabase:
     def __init__(self, db_path: str = "./teams.db"):
@@ -32,6 +33,9 @@ class TeamDatabase:
                     node_count INTEGER DEFAULT 0,
                     edge_count INTEGER DEFAULT 0,
                     version TEXT DEFAULT '1.0',
+                    origin TEXT DEFAULT 'user',
+                    source_filename TEXT,
+                    original_team_id TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
@@ -40,23 +44,61 @@ class TeamDatabase:
             # 创建索引
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_teams_name ON teams(name)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_teams_created_at ON teams(created_at)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_teams_origin ON teams(origin)')
+            
+            existing_columns = self._get_table_columns(cursor, 'teams')
+            if 'origin' not in existing_columns:
+                cursor.execute("ALTER TABLE teams ADD COLUMN origin TEXT DEFAULT 'user'")
+            if 'source_filename' not in existing_columns:
+                cursor.execute("ALTER TABLE teams ADD COLUMN source_filename TEXT")
+            if 'original_team_id' not in existing_columns:
+                cursor.execute("ALTER TABLE teams ADD COLUMN original_team_id TEXT")
             
             conn.commit()
             print(f"✅ 数据库初始化完成: {self.db_path.resolve()}")
     
-    def save_team(self, team_config: Dict[str, Any]) -> str:
+    def _get_table_columns(self, cursor: sqlite3.Cursor, table_name: str) -> Set[str]:
+        cursor.execute(f"PRAGMA table_info({table_name})")
+        return {row[1] for row in cursor.fetchall()}
+    
+    def save_team(
+        self,
+        team_config: Dict[str, Any],
+        *,
+        team_id: Optional[str] = None,
+        origin: str = 'user',
+        source_filename: Optional[str] = None,
+        original_team_id: Optional[str] = None,
+    ) -> str:
         """保存团队配置"""
         try:
             # 优先使用用户提供的名称和描述
-            metadata = team_config.get('metadata', {})
-            team_id = metadata.get('name', f"team_{int(datetime.now().timestamp())}")
-            name = metadata.get('name', 'Unnamed Team')
+            metadata = dict(team_config.get('metadata') or {})
+            candidate_id = team_id or metadata.get('id') or metadata.get('name')
+            normalized_id = str(candidate_id).strip() if candidate_id else ''
+            if not normalized_id:
+                normalized_id = f"team_{int(datetime.now().timestamp())}"
+            safe_id = re.sub(r'[^a-zA-Z0-9_-]+', '_', normalized_id) or f"team_{int(datetime.now().timestamp())}"
+            team_id = safe_id
+            name = metadata.get('name') or team_id
             description = metadata.get('description') or f"包含 {len(team_config.get('nodes', []))} 个节点和 {len(team_config.get('edges', []))} 个连接的多智能体系统"
             
-            config_json = json.dumps(team_config, ensure_ascii=False, indent=2)
-            node_count = len(team_config.get('nodes', []))
-            edge_count = len(team_config.get('edges', []))
+            metadata.setdefault('id', team_id)
+            metadata.setdefault('name', name)
+            metadata.setdefault('description', description)
+            if original_team_id:
+                metadata.setdefault('originalId', original_team_id)
+            
+            persisted_config = dict(team_config)
+            persisted_config['metadata'] = metadata
+            
+            config_json = json.dumps(persisted_config, ensure_ascii=False, indent=2)
+            node_count = len(persisted_config.get('nodes', []))
+            edge_count = len(persisted_config.get('edges', []))
             version = metadata.get('version', '1.0')
+            normalized_origin = origin if origin in ('default', 'user') else 'user'
+            cleaned_source = str(source_filename).strip() if source_filename else None
+            cleaned_original_id = str(original_team_id).strip() if original_team_id else None
             
             def _write():
                 with sqlite3.connect(self.db_path) as conn:
@@ -71,18 +113,42 @@ class TeamDatabase:
                         cursor.execute('''
                             UPDATE teams 
                             SET name = ?, description = ?, config_data = ?, 
-                                node_count = ?, edge_count = ?, version = ?,
+                                node_count = ?, edge_count = ?, version = ?, origin = ?,
+                                source_filename = ?, original_team_id = ?,
                                 updated_at = CURRENT_TIMESTAMP
                             WHERE id = ?
-                        ''', (name, description, config_json, node_count, edge_count, version, team_id))
+                        ''', (
+                            name,
+                            description,
+                            config_json,
+                            node_count,
+                            edge_count,
+                            version,
+                            normalized_origin,
+                            cleaned_source,
+                            cleaned_original_id,
+                            team_id
+                        ))
                         print(f"✅ 更新团队: {name} - {description}")
                     else:
                         # 创建新团队
                         cursor.execute('''
                             INSERT INTO teams (id, name, description, config_data, 
-                                             node_count, edge_count, version)
-                            VALUES (?, ?, ?, ?, ?, ?, ?)
-                        ''', (team_id, name, description, config_json, node_count, edge_count, version))
+                                             node_count, edge_count, version, origin,
+                                             source_filename, original_team_id)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ''', (
+                            team_id,
+                            name,
+                            description,
+                            config_json,
+                            node_count,
+                            edge_count,
+                            version,
+                            normalized_origin,
+                            cleaned_source,
+                            cleaned_original_id
+                        ))
                         print(f"✅ 创建新团队: {name} - {description}")
                     
                     conn.commit()
@@ -103,7 +169,7 @@ class TeamDatabase:
             print(f"❌ 保存团队失败: {e}")
             raise
     
-    def get_all_teams(self) -> List[Dict[str, Any]]:
+    def get_all_teams(self, origin: Optional[str] = None) -> List[Dict[str, Any]]:
         """获取所有团队"""
         try:
             def _read():
@@ -111,10 +177,18 @@ class TeamDatabase:
                     conn.row_factory = sqlite3.Row  # 使返回结果可以按列名访问
                     cursor = conn.cursor()
                     
-                    cursor.execute('''
-                        SELECT * FROM teams 
-                        ORDER BY updated_at DESC
-                    ''')
+                    filtered_origin = None
+                    if origin:
+                        lower_origin = origin.lower()
+                        if lower_origin in ('default', 'user'):
+                            filtered_origin = lower_origin
+                    query = 'SELECT * FROM teams'
+                    params: List[Any] = []
+                    if filtered_origin:
+                        query += ' WHERE origin = ?'
+                        params.append(filtered_origin)
+                    query += ' ORDER BY updated_at DESC'
+                    cursor.execute(query, params)
                     
                     teams = []
                     for row in cursor.fetchall():
@@ -127,7 +201,10 @@ class TeamDatabase:
                             'version': row['version'],
                             'createdAt': row['created_at'],
                             'updatedAt': row['updated_at'],
-                            'configData': json.loads(row['config_data'])
+                            'origin': row['origin'] or 'user',
+                            'sourceFilename': row['source_filename'],
+                            'originalTeamId': row['original_team_id'],
+                            'configData': json.loads(row['config_data']) if row['config_data'] else {}
                         }
                         teams.append(team)
                     
@@ -166,7 +243,10 @@ class TeamDatabase:
                             'version': row['version'],
                             'createdAt': row['created_at'],
                             'updatedAt': row['updated_at'],
-                            'configData': json.loads(row['config_data'])
+                            'origin': row['origin'] or 'user',
+                            'sourceFilename': row['source_filename'],
+                            'originalTeamId': row['original_team_id'],
+                            'configData': json.loads(row['config_data']) if row['config_data'] else {}
                         }
                     return None
 

@@ -148,7 +148,7 @@ const TeamPool: React.FC = () => {
       setLoadingDefault(true);
       setError(null);
 
-      const response = await fetch(`${API_PREFIX}/default-teams`);
+      const response = await fetch(`${API_PREFIX}/teams?origin=default`);
       if (!response.ok) {
         throw new Error(`Server responded with status ${response.status}`);
       }
@@ -183,7 +183,7 @@ const TeamPool: React.FC = () => {
         setLoadingUser(true);
         setError(null);
 
-        const response = await fetch(`${API_PREFIX}/teams`);
+        const response = await fetch(`${API_PREFIX}/teams?origin=user`);
         if (!response.ok) {
           throw new Error(`Server responded with status ${response.status}`);
         }
@@ -355,10 +355,14 @@ const TeamPool: React.FC = () => {
 
         const defaults = await fetchDefaultTeams();
         await fetchUserTeams(defaults);
+        const removedFile = data.removedFile !== false;
         if (data.removedOriginal) {
           message.success(`Deleted ${displayName} and its original team.`);
         } else {
           message.success(`Deleted default ${displayName}.`);
+        }
+        if (!removedFile) {
+          message.info(`${displayName} was removed from the library, but no config file was found on disk.`);
         }
       } catch (err) {
         console.error('Failed to delete default team', err);

@@ -21,6 +21,7 @@ import queue
 import glob
 import re
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 import yaml
 
@@ -37,18 +38,29 @@ current_config = None
 DEFAULT_CONFIG_DIR = Path("./SourceFiles")
 DEFAULT_CONFIG_PATTERNS = ("*.yaml", "*.yml", "*.json")
 
+def sanitize_identifier(value: Optional[str], fallback: str = "team") -> str:
+    raw = str(value).strip() if value else ""
+    cleaned = re.sub(r"[^a-zA-Z0-9_-]+", "_", raw)
+    return cleaned or fallback
 
-def load_default_team_configs():
-    """Load default team configurations from SourceFiles directory."""
+def generate_default_team_id(original_id: str) -> str:
+    safe_original = sanitize_identifier(original_id, "default_team")
+    if not safe_original.startswith("default_"):
+        safe_original = f"default_{safe_original}"
+    return safe_original
+
+
+def _scan_default_team_configs_from_files() -> List[Dict[str, Any]]:
+    """Scan SourceFiles directory for default team configurations."""
     if not DEFAULT_CONFIG_DIR.exists():
         return []
 
-    collected_files = []
+    collected_files: List[Path] = []
     for pattern in DEFAULT_CONFIG_PATTERNS:
         collected_files.extend(DEFAULT_CONFIG_DIR.glob(pattern))
 
     unique_files = {file.resolve(): file for file in collected_files}.values()
-    default_teams = []
+    default_entries: List[Dict[str, Any]] = []
 
     for config_path in sorted(unique_files, key=lambda p: p.name.lower()):
         try:
@@ -61,34 +73,55 @@ def load_default_team_configs():
             if not isinstance(config_data, dict):
                 raise ValueError("Config file must define a mapping/dictionary.")
 
-            metadata = config_data.get("metadata") or {}
+            metadata = dict(config_data.get("metadata") or {})
             nodes = config_data.get("nodes") or []
             edges = config_data.get("edges") or []
 
-            team_id = str(metadata.get("id") or metadata.get("name") or config_path.stem)
-            name = str(metadata.get("name") or config_path.stem)
+            original_identifier = (
+                metadata.get("originalId")
+                or metadata.get("id")
+                or metadata.get("name")
+                or config_path.stem
+            )
+            original_id = sanitize_identifier(str(original_identifier), config_path.stem)
+            default_id_candidate = metadata.get("id")
+            if default_id_candidate:
+                default_id = sanitize_identifier(str(default_id_candidate), generate_default_team_id(original_id))
+            else:
+                default_id = generate_default_team_id(original_id)
+            if default_id == original_id:
+                default_id = generate_default_team_id(original_id)
+
+            display_name = metadata.get("name") or original_id
             description = metadata.get("description") or "Default team template."
             version = metadata.get("version") or "1.0"
             compiled_at = metadata.get("compiledAt") or metadata.get("updatedAt")
 
-            default_teams.append({
-                "id": team_id,
-                "name": name,
+            metadata["id"] = default_id
+            metadata.setdefault("name", display_name)
+            metadata.setdefault("originalId", original_id)
+
+            normalized_config = dict(config_data)
+            normalized_config["metadata"] = metadata
+
+            default_entries.append({
+                "id": default_id,
+                "name": display_name,
                 "description": description,
                 "version": version,
                 "createdAt": compiled_at,
                 "updatedAt": compiled_at,
                 "nodeCount": len(nodes),
                 "edgeCount": len(edges),
-                "configData": config_data,
+                "configData": normalized_config,
                 "sourceFilename": config_path.name,
-                "originalTeamId": metadata.get("originalId"),
+                "originalTeamId": original_id,
                 "origin": "default",
             })
         except Exception as exc:
             print(f"⚠️ Failed to load default config '{config_path}': {exc}")
-            default_teams.append({
-                "id": config_path.stem,
+            default_entries.append({
+                "id": sanitize_identifier(config_path.stem, "default_team"),
                 "name": config_path.stem,
                 "description": "Unable to load configuration file.",
                 "version": "1.0",
@@ -101,21 +134,48 @@ def load_default_team_configs():
                 "error": str(exc),
             })
 
-    return default_teams
+    return default_entries
 
 
-def save_default_team_config(team_id: str, config: dict) -> str:
+def sync_default_configs_from_files() -> List[Dict[str, Any]]:
+    defaults = _scan_default_team_configs_from_files()
+    for entry in defaults:
+        config_payload = entry.get("configData") or {}
+        team_id = entry.get("id")
+        try:
+            db.save_team(
+                config_payload,
+                team_id=team_id,
+                origin="default",
+                source_filename=entry.get("sourceFilename"),
+                original_team_id=entry.get("originalTeamId"),
+            )
+        except Exception as exc:
+            print(f"⚠️ Failed to persist default team '{team_id}': {exc}")
+    return defaults
+
+
+def load_default_team_configs() -> List[Dict[str, Any]]:
+    return db.get_all_teams(origin="default")
+
+
+sync_default_configs_from_files()
+
+def save_default_team_config(team_id: str, config: dict, original_team_id: Optional[str] = None) -> str:
     """Persist a default team configuration to the SourceFiles directory."""
     DEFAULT_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
-    safe_id = re.sub(r'[^a-zA-Z0-9_-]+', '_', team_id.strip() or 'default_team')
+    safe_id = sanitize_identifier(team_id, "default_team")
     filename = f"{safe_id}.yaml"
     path = DEFAULT_CONFIG_DIR / filename
 
     metadata = dict(config.get("metadata") or {})
     metadata.setdefault("id", safe_id)
     metadata.setdefault("name", metadata.get("name") or safe_id)
-    metadata.setdefault("originalId", str(team_id))
+    if original_team_id:
+        metadata["originalId"] = sanitize_identifier(str(original_team_id), safe_id)
+    else:
+        metadata.setdefault("originalId", safe_id)
 
     persisted_config = dict(config)
     persisted_config["metadata"] = metadata
@@ -139,7 +199,18 @@ def health_check():
 def get_teams():
     """获取所有团队信息"""
     try:
-        teams = db.get_all_teams()
+        requested_origin = request.args.get('origin')
+        normalized_origin = None
+        if requested_origin:
+            lower_origin = requested_origin.lower()
+            if lower_origin not in ('default', 'user'):
+                return jsonify({
+                    'success': False,
+                    'error': 'Invalid origin filter'
+                }), 400
+            normalized_origin = lower_origin
+
+        teams = db.get_all_teams(origin=normalized_origin)
         return jsonify({
             'success': True,
             'teams': teams
@@ -154,6 +225,7 @@ def get_teams():
 def get_default_teams():
     """Load default team configurations from SourceFiles directory."""
     try:
+        sync_default_configs_from_files()
         teams = load_default_team_configs()
         return jsonify({
             'success': True,
@@ -171,24 +243,48 @@ def save_default_team_endpoint():
     """Persist a team configuration as a default template."""
     try:
         data = request.get_json(silent=True) or {}
-        config = data.get('config')
-        team_id = data.get('teamId') or (config or {}).get('id')
-        metadata = (config or {}).get('metadata') or {}
-
-        if not isinstance(config, dict) or not config:
+        raw_config = data.get('config')
+        if not isinstance(raw_config, dict) or not raw_config:
             return jsonify({
                 'success': False,
                 'error': 'Config payload is required'
             }), 400
 
-        candidate_id = team_id or metadata.get('id') or metadata.get('name')
-        if not candidate_id:
-            candidate_id = f"default_{int(time.time())}"
+        metadata = dict(raw_config.get('metadata') or {})
+        original_candidate = (
+            data.get('teamId')
+            or metadata.get('originalId')
+            or metadata.get('id')
+            or metadata.get('name')
+        )
+        if not original_candidate:
+            original_candidate = f"user_team_{int(time.time())}"
+        original_team_id = sanitize_identifier(str(original_candidate), f"user_team_{int(time.time())}")
 
-        filename = save_default_team_config(str(candidate_id), config)
+        default_team_id = generate_default_team_id(original_team_id)
+        display_name = metadata.get('name') or original_team_id
+        description = metadata.get('description') or "Default team template."
+
+        metadata['id'] = default_team_id
+        metadata['name'] = display_name
+        metadata['description'] = description
+        metadata['originalId'] = original_team_id
+
+        config_payload = dict(raw_config)
+        config_payload['metadata'] = metadata
+
+        filename = save_default_team_config(default_team_id, config_payload, original_team_id)
+        db.save_team(
+            config_payload,
+            team_id=default_team_id,
+            origin='default',
+            source_filename=filename,
+            original_team_id=original_team_id,
+        )
+
         return jsonify({
             'success': True,
-            'teamId': candidate_id,
+            'teamId': default_team_id,
             'filename': filename
         })
     except Exception as e:
@@ -204,67 +300,63 @@ def delete_default_team_endpoint(team_id):
     try:
         print(f"Attempting to delete default team: {team_id}")
         data = request.get_json(silent=True) or {}
-        filename = data.get('filename')
+        filename_hint = data.get('filename')
         requested_original_id = data.get('originalTeamId')
 
-        teams = load_default_team_configs()
-        target = None
-
-        if filename:
-            target = next((team for team in teams if team.get('sourceFilename') == filename), None)
-
-        if not target:
-            target = next((team for team in teams if team.get('id') == team_id), None)
-
-        if not target:
+        team = db.get_team(team_id)
+        if not team or team.get('origin') != 'default':
             return jsonify({
                 'success': False,
                 'error': 'Default team not found'
             }), 404
 
-        candidate_filename = filename or target.get('sourceFilename')
-        path = DEFAULT_CONFIG_DIR / candidate_filename if candidate_filename else None
+        source_filename = filename_hint or team.get('sourceFilename')
+        candidate_paths = []
+        if source_filename:
+            candidate_paths.append(DEFAULT_CONFIG_DIR / source_filename)
 
-        if not path or not path.exists():
-            safe_id = re.sub(r'[^a-zA-Z0-9_-]+', '_', team_id)
-            fallback_names = [
-                f"{team_id}.yaml",
-                f"{team_id}.yml",
-                f"{team_id}.json",
-                f"{safe_id}.yaml",
-                f"{safe_id}.yml",
-                f"{safe_id}.json",
-            ]
-            for name in fallback_names:
-                candidate = DEFAULT_CONFIG_DIR / name
-                if candidate.exists():
-                    path = candidate
-                    break
+        safe_id = sanitize_identifier(team_id, team_id)
+        for name in {team_id, safe_id}:
+            candidate_paths.extend([
+                DEFAULT_CONFIG_DIR / f"{name}.yaml",
+                DEFAULT_CONFIG_DIR / f"{name}.yml",
+                DEFAULT_CONFIG_DIR / f"{name}.json",
+            ])
 
-        if not path or not path.exists():
-            return jsonify({
-                'success': False,
-                'error': 'Default configuration file not found'
-            }), 404
+        deleted_file = False
+        seen_paths = set()
+        for path in candidate_paths:
+            if path in seen_paths:
+                continue
+            seen_paths.add(path)
+            if path.exists():
+                path.unlink()
+                deleted_file = True
+                break
 
-        path.unlink()
+        db.delete_team(team_id)
 
-        original_id = (
-            requested_original_id
-            or target.get('configData', {}).get('metadata', {}).get('originalId')
-            or target.get('originalTeamId')
-        )
+        original_id = requested_original_id or team.get('originalTeamId')
+        if not original_id:
+            metadata = (team.get('configData') or {}).get('metadata') or {}
+            original_id = metadata.get('originalId')
+
         removed_original = False
-        if original_id:
+        if original_id and original_id != team_id:
             removed_original = db.delete_team(str(original_id))
 
-        return jsonify({'success': True, 'removedOriginal': removed_original})
+        return jsonify({
+            'success': True,
+            'removedOriginal': removed_original,
+            'removedFile': deleted_file
+        })
     except Exception as e:
         print(f"⚠️ Failed to delete default team: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
         }), 500
+
 
 @app.route('/api/teams', methods=['POST'])
 def save_team():
@@ -605,6 +697,7 @@ def reset_session():
 def get_available_configs():
     """获取所有可用的配置文件（兼容性接口）"""
     try:
+        sync_default_configs_from_files()
         teams = db.get_all_teams()
         configs = []
         for team in teams:
@@ -614,7 +707,8 @@ def get_available_configs():
                 'version': team['version'],
                 'compiledAt': team['updatedAt'],
                 'nodeCount': team['nodeCount'],
-                'edgeCount': team['edgeCount']
+                'edgeCount': team['edgeCount'],
+                'origin': team.get('origin', 'user'),
             })
         
         return jsonify({
