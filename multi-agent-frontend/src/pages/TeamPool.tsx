@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Layout, Typography, Tag, Space, Button, Spin, message } from 'antd';
+import { Layout, Typography, Tag, Space, Button, Spin, Dropdown, Modal, message } from 'antd';
+import type { MenuProps } from 'antd';
 import {
   TeamOutlined,
   ThunderboltOutlined,
@@ -41,7 +42,13 @@ interface ApiTeam {
   createdAt?: string;
   updatedAt?: string;
   configData?: ConfigData;
+  sourceFilename?: string;
+  origin?: 'default' | 'user';
+  error?: string;
 }
+
+const getDisplayName = (team: ApiTeam): string =>
+  team.configData?.metadata?.name || team.name || team.id;
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
 
@@ -130,13 +137,14 @@ const renderStatusLabel = (status: TeamStatus): string => {
 
 const TeamPool: React.FC = () => {
   const navigate = useNavigate();
-  const [teams, setTeams] = useState<ApiTeam[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [userTeams, setUserTeams] = useState<ApiTeam[]>([]);
+  const [defaultTeams, setDefaultTeams] = useState<ApiTeam[]>([]);
+  const [loadingUser, setLoadingUser] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchTeams = useCallback(async () => {
+  const fetchUserTeams = useCallback(async () => {
     try {
-      setLoading(true);
+      setLoadingUser(true);
       setError(null);
 
       const response = await fetch(`${API_BASE_URL}/api/teams`);
@@ -149,29 +157,40 @@ const TeamPool: React.FC = () => {
         throw new Error(data.error || 'Failed to load teams');
       }
 
-      setTeams(Array.isArray(data.teams) ? data.teams : []);
+      const teams = (Array.isArray(data.teams) ? data.teams : []) as ApiTeam[];
+      const defaultIds = new Set(defaultTeams.map(team => team.id));
+      setUserTeams(
+        teams
+          .filter((team: ApiTeam) => !defaultIds.has(team.id))
+          .map((team: ApiTeam) => ({
+            ...team,
+            origin: 'user',
+          }))
+      );
     } catch (err) {
       console.error('Failed to load teams', err);
-      setTeams([]);
+      setUserTeams([]);
       setError(err instanceof Error ? err.message : 'Unable to load teams');
     } finally {
-      setLoading(false);
+      setLoadingUser(false);
     }
-  }, []);
+  }, [defaultTeams]);
 
   useEffect(() => {
-    fetchTeams();
-  }, [fetchTeams]);
+    fetchUserTeams();
+  }, [fetchUserTeams]);
 
   const stats = useMemo(() => {
-    if (!teams.length) {
+    const allTeams = [...defaultTeams, ...userTeams];
+
+    if (!allTeams.length) {
       return { totalTeams: 0, totalNodes: 0, totalAgents: 0 };
     }
 
     let totalNodes = 0;
     let totalAgents = 0;
 
-    teams.forEach(team => {
+    allTeams.forEach(team => {
       const nodesFromConfig = team.configData?.nodes ?? [];
       const nodeCount = team.nodeCount ?? nodesFromConfig.length;
 
@@ -180,26 +199,69 @@ const TeamPool: React.FC = () => {
     });
 
     return {
-      totalTeams: teams.length,
+      totalTeams: allTeams.length,
       totalNodes,
       totalAgents,
     };
-  }, [teams]);
+  }, [defaultTeams, userTeams]);
 
   const apiStatus: TeamStatus = error
     ? 'disconnected'
-    : teams.length > 0
+    : userTeams.length > 0
     ? 'connected'
     : 'unknown';
 
   const handleBackHome = () => navigate('/');
   const handleDesignCustom = () => navigate('/builder');
+  const handleRefresh = useCallback(() => {
+    fetchUserTeams();
+  }, [fetchUserTeams]);
+  const handleDeleteTeam = useCallback(async (teamId: string, teamName: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/teams/${teamId}`, {
+        method: 'DELETE',
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to delete team');
+      }
+      setUserTeams(prev => prev.filter(team => team.id !== teamId));
+      setDefaultTeams(prev => prev.filter(team => team.id !== teamId));
+      message.success(`Deleted ${teamName}.`);
+    } catch (err) {
+      console.error('Failed to delete team', err);
+      message.error('Failed to delete this team.');
+    }
+  }, []);
+
+  const handleSetAsDefault = useCallback((team: ApiTeam) => {
+    const displayName = getDisplayName(team);
+    setDefaultTeams(prev => {
+      const filtered = prev.filter(existing => existing.id !== team.id);
+      return [...filtered, { ...team, origin: 'default' }];
+    });
+    setUserTeams(prev => prev.filter(existing => existing.id !== team.id));
+    message.success(`Set ${displayName} as default.`);
+  }, []);
+
+  const confirmDeleteTeam = useCallback((team: ApiTeam) => {
+    const displayName = getDisplayName(team);
+    Modal.confirm({
+      title: `Delete ${displayName}?`,
+      content: 'Deleting a team cannot be undone.',
+      okText: 'Delete',
+      okButtonProps: { danger: true },
+      cancelText: 'Cancel',
+      onOk: () => handleDeleteTeam(team.id, displayName),
+    });
+  }, [handleDeleteTeam]);
 
   const openRunner = useCallback(async (team: ApiTeam, mode: 'preview' | 'execute') => {
     try {
+      const isDefaultTeam = team.origin === 'default';
       let config = team.configData;
 
-      if (!config) {
+      if (!config && !isDefaultTeam) {
         const response = await fetch(`${API_BASE_URL}/api/teams/${team.id}`);
         if (!response.ok) {
           throw new Error('Unable to load team configuration');
@@ -218,7 +280,11 @@ const TeamPool: React.FC = () => {
       sessionStorage.setItem('selectedTeamConfig', JSON.stringify(config));
       sessionStorage.setItem('selectedTeamName', config.metadata?.name || team.name || team.id);
       sessionStorage.setItem('selectedTeamId', team.id);
-      sessionStorage.setItem('selectedTeamFilename', `${team.id}.yaml`);
+      if (team.sourceFilename) {
+        sessionStorage.setItem('selectedTeamFilename', team.sourceFilename);
+      } else {
+        sessionStorage.setItem('selectedTeamFilename', `${team.id}.yaml`);
+      }
       sessionStorage.setItem('selectedTeamMode', mode);
 
       navigate('/python-runner');
@@ -227,6 +293,152 @@ const TeamPool: React.FC = () => {
       message.error('Failed to open Python Runner for this team.');
     }
   }, [navigate]);
+
+  const renderTeamCard = (team: ApiTeam, allowContextMenu: boolean) => {
+    const metadata = team.configData?.metadata ?? {};
+    const displayName = getDisplayName(team);
+    const baseDescription =
+      metadata.description || team.description || 'This team does not have a description yet.';
+    const description = team.error ? `Warning: ${team.error}` : baseDescription;
+    const rawVersion = metadata.version || team.version || '1.0';
+    const versionLabel = rawVersion.toLowerCase().startsWith('v') ? rawVersion : `v${rawVersion}`;
+
+    const nodes = team.configData?.nodes ?? [];
+    const edges = team.configData?.edges ?? [];
+
+    const nodeCount = team.nodeCount ?? nodes.length;
+    const edgeCount = team.edgeCount ?? edges.length;
+    const agentCount = countAgentNodes(team);
+
+    const size = determineTeamSize(nodeCount);
+    const sizeLabel = formatSizeLabel(size);
+
+    const tags = deriveTags(team);
+    const updatedLabel = formatUpdatedTime(metadata.compiledAt || team.updatedAt || team.createdAt);
+
+    const metadataStatus = (metadata.status as TeamStatus) ?? 'connected';
+    const normalizedStatus: TeamStatus =
+      metadataStatus === 'disconnected'
+        ? 'disconnected'
+        : metadataStatus === 'unknown'
+        ? 'unknown'
+        : 'connected';
+
+    const statusTagLabel =
+      team.origin === 'default'
+        ? 'Default'
+        : normalizedStatus === 'connected'
+        ? 'Ready to run'
+        : normalizedStatus === 'disconnected'
+        ? 'Not available'
+        : 'Draft';
+
+    const disableActions = Boolean(team.error);
+
+    const card = (
+      <div className="team-card">
+        <div className="team-card__header">
+          <div>
+            <Title level={4}>{displayName}</Title>
+            <Tag bordered={false} className="version-badge">
+              {versionLabel}
+            </Tag>
+            <div className={`size-pill ${size}`}>{sizeLabel}</div>
+          </div>
+          <Space direction="vertical" align="end">
+            <Tag bordered={false} className={`api-pill ${normalizedStatus}`}>
+              {team.error ? 'Load error' : statusTagLabel}
+            </Tag>
+            <Text type="secondary">{updatedLabel}</Text>
+            <Text type="secondary">Nodes: {nodeCount}</Text>
+          </Space>
+        </div>
+
+        <Paragraph className="team-description">
+          {description}
+        </Paragraph>
+
+        <div className="team-card__stats">
+          <div className="stat-chip">
+            <ThunderboltOutlined />
+            <span>{nodeCount} nodes</span>
+          </div>
+          <div className="stat-chip">
+            <LinkOutlined />
+            <span>{edgeCount} edges</span>
+          </div>
+          <div className="stat-chip">
+            <TeamOutlined />
+            <span>
+              {agentCount} agent{agentCount === 1 ? '' : 's'}
+            </span>
+          </div>
+        </div>
+
+        {tags.length > 0 && (
+          <Space size="small" wrap>
+            {tags.slice(0, 4).map(tag => (
+              <Tag key={tag}>{tag}</Tag>
+            ))}
+            {tags.length > 4 && <Tag className="tag-more">+{tags.length - 4}</Tag>}
+          </Space>
+        )}
+
+        <div className="team-card__actions">
+          <Button onClick={() => openRunner(team, 'preview')} disabled={disableActions}>
+            Preview
+          </Button>
+          <Button
+            type="primary"
+            icon={<PlayCircleOutlined />}
+            onClick={() => openRunner(team, 'execute')}
+            disabled={disableActions}
+          >
+            Launch
+          </Button>
+        </div>
+      </div>
+    );
+
+    if (!allowContextMenu) {
+      return React.cloneElement(card, { key: `default-${team.id}` });
+    }
+
+    const menuItems: MenuProps['items'] = [
+      {
+        key: 'set-default',
+        label: 'Set as default',
+        disabled: disableActions,
+      },
+      { type: 'divider' },
+      {
+        key: 'delete',
+        label: 'Delete',
+        danger: true,
+      },
+    ];
+
+    const menu: MenuProps = {
+      items: menuItems,
+      onClick: ({ key }) => {
+        if (key === 'set-default') {
+          handleSetAsDefault(team);
+        } else if (key === 'delete') {
+          confirmDeleteTeam(team);
+        }
+      },
+    };
+
+    return (
+      <Dropdown
+        key={`user-${team.id}`}
+        trigger={['contextMenu']}
+        menu={menu}
+      >
+        {React.cloneElement(card, { key: `user-${team.id}` })}
+      </Dropdown>
+    );
+  };
 
   return (
     <Layout className="team-pool">
@@ -242,7 +454,11 @@ const TeamPool: React.FC = () => {
               <Button icon={<ArrowLeftOutlined />} onClick={handleBackHome}>
                 Back to Home
               </Button>
-              <Button icon={<ReloadOutlined />} onClick={fetchTeams} loading={loading}>
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={handleRefresh}
+                loading={loadingUser}
+              >
                 Refresh
               </Button>
               <Button type="primary" icon={<PlusOutlined />} onClick={handleDesignCustom}>
@@ -273,26 +489,46 @@ const TeamPool: React.FC = () => {
 
       <Content className="team-pool-content">
         <div className="team-content-shell">
-          <section>
-            <Title level={3}>Your teams</Title>
+          <section className="team-section">
+            <div className="team-section__title">
+              <Title level={3}>Default Teams</Title>
+              <Paragraph type="secondary">
+                Right-click a team below and choose “Set as default” to pin it here.
+              </Paragraph>
+            </div>
 
-            {loading && (
-              <div className="team-loading">
-                <Spin size="large" />
-                <Paragraph className="loading-copy">Loading teams…</Paragraph>
+            {defaultTeams.length === 0 ? (
+              <div className="empty-state glass">
+                <Title level={4}>No default teams yet</Title>
+                <Paragraph type="secondary">
+                  Right-click a team under “Your Teams” and set it as default to add it here.
+                </Paragraph>
+              </div>
+            ) : (
+              <div className="teams-grid">
+                {defaultTeams.map(team => renderTeamCard(team, false))}
               </div>
             )}
+          </section>
 
-            {!loading && error && (
+          <section className="team-section">
+            <div className="team-section__title">
+              <Title level={3}>Your Teams</Title>
+            </div>
+
+            {loadingUser ? (
+              <div className="team-loading">
+                <Spin size="large" />
+                <Paragraph className="loading-copy">Loading your teams...</Paragraph>
+              </div>
+            ) : error ? (
               <div className="team-loading">
                 <Paragraph type="secondary">{error}</Paragraph>
-                <Button icon={<ReloadOutlined />} onClick={fetchTeams}>
+                <Button icon={<ReloadOutlined />} onClick={handleRefresh}>
                   Retry
                 </Button>
               </div>
-            )}
-
-            {!loading && !error && teams.length === 0 && (
+            ) : userTeams.length === 0 ? (
               <div className="empty-state glass">
                 <Title level={4}>No teams yet</Title>
                 <Paragraph type="secondary">
@@ -302,114 +538,9 @@ const TeamPool: React.FC = () => {
                   Create your first team
                 </Button>
               </div>
-            )}
-
-            {!loading && !error && teams.length > 0 && (
+            ) : (
               <div className="teams-grid">
-                {teams.map(team => {
-                  const metadata = team.configData?.metadata ?? {};
-                  const displayName = metadata.name || team.name || team.id;
-                  const description =
-                    metadata.description || team.description || 'This team does not have a description yet.';
-                  const rawVersion = metadata.version || team.version || '1.0';
-                  const versionLabel = rawVersion.toLowerCase().startsWith('v')
-                    ? rawVersion
-                    : `v${rawVersion}`;
-
-                  const nodes = team.configData?.nodes ?? [];
-                  const edges = team.configData?.edges ?? [];
-
-                  const nodeCount = team.nodeCount ?? nodes.length;
-                  const edgeCount = team.edgeCount ?? edges.length;
-                  const agentCount = countAgentNodes(team);
-
-                  const size = determineTeamSize(nodeCount);
-                  const sizeLabel = formatSizeLabel(size);
-
-                  const tags = deriveTags(team);
-                  const updatedLabel = formatUpdatedTime(metadata.compiledAt || team.updatedAt || team.createdAt);
-
-                  const metadataStatus = (metadata.status as TeamStatus) ?? 'connected';
-                  const normalizedStatus: TeamStatus =
-                    metadataStatus === 'disconnected'
-                      ? 'disconnected'
-                      : metadataStatus === 'unknown'
-                      ? 'unknown'
-                      : 'connected';
-
-                  const statusTagLabel =
-                    normalizedStatus === 'connected'
-                      ? 'Ready to run'
-                      : normalizedStatus === 'disconnected'
-                      ? 'Not available'
-                      : 'Draft';
-
-                  return (
-                    <div key={team.id} className="team-card">
-                      <div className="team-card__header">
-                        <div>
-                          <Title level={4}>{displayName}</Title>
-                          <Tag bordered={false} className="version-badge">
-                            {versionLabel}
-                          </Tag>
-                          <div className={`size-pill ${size}`}>{sizeLabel}</div>
-                        </div>
-                        <Space direction="vertical" align="end">
-                          <Tag bordered={false} className={`api-pill ${normalizedStatus}`}>
-                            {statusTagLabel}
-                          </Tag>
-                          <Text type="secondary">{updatedLabel}</Text>
-                          <Text type="secondary">Nodes: {nodeCount}</Text>
-                        </Space>
-                      </div>
-
-                      <Paragraph className="team-description">
-                        {description}
-                      </Paragraph>
-
-                      <div className="team-card__stats">
-                        <div className="stat-chip">
-                          <ThunderboltOutlined />
-                          <span>{nodeCount} nodes</span>
-                        </div>
-                        <div className="stat-chip">
-                          <LinkOutlined />
-                          <span>{edgeCount} edges</span>
-                        </div>
-                        <div className="stat-chip">
-                          <TeamOutlined />
-                          <span>
-                            {agentCount} agent{agentCount === 1 ? '' : 's'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {tags.length > 0 && (
-                        <Space size="small" wrap>
-                          {tags.slice(0, 4).map(tag => (
-                            <Tag key={tag}>{tag}</Tag>
-                          ))}
-                          {tags.length > 4 && (
-                            <Tag className="tag-more">+{tags.length - 4}</Tag>
-                          )}
-                        </Space>
-                      )}
-
-                      <div className="team-card__actions">
-                        <Button onClick={() => openRunner(team, 'preview')}>
-                          Preview
-                        </Button>
-                        <Button
-                          type="primary"
-                          icon={<PlayCircleOutlined />}
-                          onClick={() => openRunner(team, 'execute')}
-                        >
-                          Launch
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
+                {userTeams.map(team => renderTeamCard(team, true))}
               </div>
             )}
           </section>

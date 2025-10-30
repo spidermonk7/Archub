@@ -111,6 +111,26 @@
   padding-top: 8px;
 }
 
+.team-section {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.team-section + .team-section {
+  margin-top: 16px;
+}
+
+.team-section__title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.team-section__title .ant-typography {
+  margin: 0;
+}
+
 .team-loading {
   padding: 80px 24px;
   display: flex;

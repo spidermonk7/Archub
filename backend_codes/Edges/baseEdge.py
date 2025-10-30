@@ -110,5 +110,3 @@ class BaseEdge(ABC):
         """Load messages from the source node to the target node."""
         message = self.source_node.send()
         self.msg_queue.append(message)
-
-        

@@ -18,6 +18,10 @@ from backend_codes.telemetry import QueueEmitter
 import json
 import threading
 import queue
+import glob
+from pathlib import Path
+
+import yaml
 
 app = Flask(__name__)
 CORS(app)  # 允许跨域请求
@@ -28,6 +32,73 @@ db = TeamDatabase()
 # 全局变量存储当前的team runner实例
 current_runner = None
 current_config = None
+
+DEFAULT_CONFIG_DIR = Path("./SourceFiles")
+DEFAULT_CONFIG_PATTERNS = ("*.yaml", "*.yml", "*.json")
+
+
+def load_default_team_configs():
+    """Load default team configurations from SourceFiles directory."""
+    if not DEFAULT_CONFIG_DIR.exists():
+        return []
+
+    collected_files = []
+    for pattern in DEFAULT_CONFIG_PATTERNS:
+        collected_files.extend(DEFAULT_CONFIG_DIR.glob(pattern))
+
+    unique_files = {file.resolve(): file for file in collected_files}.values()
+    default_teams = []
+
+    for config_path in sorted(unique_files, key=lambda p: p.name.lower()):
+        try:
+            with config_path.open("r", encoding="utf-8") as handle:
+                if config_path.suffix.lower() == ".json":
+                    config_data = json.load(handle)
+                else:
+                    config_data = yaml.safe_load(handle)
+
+            if not isinstance(config_data, dict):
+                raise ValueError("Config file must define a mapping/dictionary.")
+
+            metadata = config_data.get("metadata") or {}
+            nodes = config_data.get("nodes") or []
+            edges = config_data.get("edges") or []
+
+            team_id = str(metadata.get("id") or metadata.get("name") or config_path.stem)
+            name = str(metadata.get("name") or config_path.stem)
+            description = metadata.get("description") or "Default team template."
+            version = metadata.get("version") or "1.0"
+            compiled_at = metadata.get("compiledAt") or metadata.get("updatedAt")
+
+            default_teams.append({
+                "id": team_id,
+                "name": name,
+                "description": description,
+                "version": version,
+                "createdAt": compiled_at,
+                "updatedAt": compiled_at,
+                "nodeCount": len(nodes),
+                "edgeCount": len(edges),
+                "configData": config_data,
+                "sourceFilename": config_path.name,
+                "origin": "default",
+            })
+        except Exception as exc:
+            print(f"⚠️ Failed to load default config '{config_path}': {exc}")
+            default_teams.append({
+                "id": config_path.stem,
+                "name": config_path.stem,
+                "description": "Unable to load configuration file.",
+                "version": "1.0",
+                "nodeCount": 0,
+                "edgeCount": 0,
+                "configData": {},
+                "sourceFilename": config_path.name,
+                "origin": "default",
+                "error": str(exc),
+            })
+
+    return default_teams
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
@@ -49,6 +120,22 @@ def get_teams():
             'teams': teams
         })
     except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/default-teams', methods=['GET'])
+def get_default_teams():
+    """Load default team configurations from SourceFiles directory."""
+    try:
+        teams = load_default_team_configs()
+        return jsonify({
+            'success': True,
+            'teams': teams
+        })
+    except Exception as e:
+        print(f"⚠️ Failed to enumerate default teams: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
