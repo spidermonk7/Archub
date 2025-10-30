@@ -24,12 +24,7 @@ class GoThroughNode(BaseProcedureNode):
         self.type = "logic"
         self.logic_type = logic_type
 
-    def receive(self, message):
-        """Normalize incoming payloads to list form before forwarding."""
-        if message is None:
-            return
-        if isinstance(message, list):
-            super().receive(message)
-        else:
-            super().receive([message])
-
+    def receive(self, input_data):
+        """Receive input data or messages."""
+        self.received.extend([input_data] if not isinstance(input_data, list) else input_data)
+       

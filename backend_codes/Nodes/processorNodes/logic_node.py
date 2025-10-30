@@ -18,7 +18,7 @@ class RandomAbandonNode(BaseNode):
 
     def receive(self, input_data):
         """Receive input data or messages."""
-        self.received.append(input_data)
+        self.received.extend(input_data)
         print(f"{self.name} received data: {input_data}")
 
     def process(self):

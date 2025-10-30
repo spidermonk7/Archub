@@ -52,16 +52,6 @@ class MessageScheduler:
         self._sequence_counter += 1
 
         try:
-            print(
-                f"[Scheduler] queued edge {edge.edge_id} "
-                f"(source={edge.source_node.id} -> target={edge.target_node.id}) "
-                f"at tick {scheduled_at} for delivery tick {deliver_at} "
-                f"(delay={max(0, deliver_at - scheduled_at)}) with {len(payload)} message(s)"
-            )
-        except Exception:
-            pass
-
-        try:
             self.emit({
                 'type': 'edge.message.scheduled',
                 'runId': edge.run_id,
@@ -85,23 +75,6 @@ class MessageScheduler:
     def dispatch(self, tick: int) -> List[ScheduledDelivery]:
         if tick not in self._queue:
             return []
-
-        try:
-            queued = self._queue[tick]
-            preview = sorted(
-                queued,
-                key=lambda d: (d.scheduled_at, d.sequence),
-                reverse=True,
-            )
-            print(
-                f"[Scheduler] dispatching tick {tick} with {len(queued)} pending delivery(ies): "
-                + ", ".join(
-                    f"{delivery.edge.edge_id}(scheduled_at={delivery.scheduled_at},seq={delivery.sequence})"
-                    for delivery in preview
-                )
-            )
-        except Exception:
-            pass
 
         deliveries = self._queue.pop(tick, [])
         deliveries.sort(key=lambda d: (d.scheduled_at, d.sequence), reverse=True)

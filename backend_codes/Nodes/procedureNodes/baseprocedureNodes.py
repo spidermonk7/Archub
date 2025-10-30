@@ -18,11 +18,10 @@ class BaseProcedureNode(BaseNode):
         self.resume_info = None
 
 
-    def receive(self, message):
+    def receive(self, input_data):
         """Receive input data or messages."""
-        self.received.extend(message)
-
-
+        self.received.extend([input_data] if not isinstance(input_data, list) else input_data)
+       
     def process(self):
         # Only emit processing events when there is actual input
         if not self.received:

@@ -19,7 +19,6 @@ import yaml
 from Edges.baseEdge import BaseEdge
 from Tools.Basic.tools_pool import load_tool
 from Nodes.logicNodes.goThroughNode import GoThroughNode
-from Scheduler import MessageScheduler
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -175,17 +174,17 @@ class SimpleTeam(BaseTeam):
                 print(f"✅ 注册边: {edge.edge_id} (源: {source_id}, 目标: {target_id}, 类型: {edge_type})")
             else:
                 print(f"❌ 无法注册边: {edge_config} (源或目标节点不存在)") 
+    
     def run(self):
         output_id = self.output_node_id or 'output-node'
         if output_id not in self.nodes:
             raise ValueError('SimpleTeam requires an output node.')
         out_node = self.nodes[output_id]
-        scheduler = MessageScheduler(emit=self.emit)
-
+      
         settings = self.config.get('settings', {}) if isinstance(self.config, dict) else {}
-        max_ticks = settings.get('maxTicks', 50)
+        max_ticks = settings.get('maxTicks', 5)
         current_tick = 0
-        idle_ticks = 0
+       
 
         try:
             self.emit({
@@ -207,11 +206,25 @@ class SimpleTeam(BaseTeam):
         except Exception:
             pass
 
+        def is_system_stable() -> bool:
+            """检查系统是否达到稳定状态：
+            除了output node以外，没有任何其他node有received消息
+            """
+            # 检查除输出节点外的所有节点是否还有待处理的消息
+            for node in self.nodes.values():
+                if node.id != self.output_node_id and getattr(node, 'received', []):
+                    print(f"节点 {node.id} 还有 {len(node.received)} 条待处理消息")
+                    return False
+                    
+            print("系统已达到稳定状态：除输出节点外无待处理消息")
+            return True
+
         def finalize() -> str | None:
-            if len(getattr(out_node, 'received', [])) == 0:
+            if not is_system_stable():
                 return None
-            # msg = out_node.received[-1]
-            msg = '\n'.join([getattr(m, 'content', str(m)) for m in out_node.received])
+                
+            msg = '\n'.join([getattr(m, 'content') for m in out_node.received])
+            print(f"\n🏁 系统稳定，输出节点 {out_node.id} 收到最终消息:\n{msg}\n")
             try:
                 self.emit({
                     'type': 'node.state.done',
@@ -232,66 +245,42 @@ class SimpleTeam(BaseTeam):
                 pass
             return msg
 
+        final_output = None
         while current_tick < max_ticks:
-            deliveries = scheduler.dispatch(current_tick)
+            
+            # 传递消息
+            for edge in self.edges.values():
+                edge.deliver(current_tick)
 
-            result = finalize()
-            if result is not None:
-                return result
+            # deliver后检查是否已经稳定，如果稳定就结束
+            final_output = finalize()
+            if final_output is not None:
+                return final_output
 
-            processed_sources: List[str] = []
+            # 处理节点
+            has_activity = False
             for node_id, node in self.nodes.items():
-                if node_id == output_id:
-                    continue
                 if getattr(node, 'received', []):
+                    has_activity = True
                     node.process()
-                    processed_sources.append(node_id)
                     node.received = []
+                    # 加载输出到边
+                    for edge in self.edges_by_source.get(node_id, []):
+                        edge.load()
 
-            for node_id in processed_sources:
-                for edge in self.edges_by_source.get(node_id, []):
-                    edge.communicate(scheduler, current_tick=current_tick)
-                self.nodes[node_id].processed = []
-
-            try:
-                self.emit({
-                    'type': 'scheduler.tick',
-                    'runId': self.run_id,
-                    'teamId': self.team_id,
-                    'tick': current_tick,
-                    'meta': {
-                        'pendingTicks': scheduler.pending_ticks(),
-                        'processedNodeIds': processed_sources,
-                    },
-                })
-            except Exception:
-                pass
-
-            if processed_sources or deliveries or scheduler.has_pending():
-                idle_ticks = 0
-            else:
-                idle_ticks += 1
-                if idle_ticks >= 2:
-                    break
-
+            print(f"\n=== Tick {current_tick} (活动: {has_activity}) ===")
+          
             current_tick += 1
+            
+            
+        print(f"Final output is: {final_output}")
 
-        while scheduler.has_pending() and current_tick < max_ticks:
-            current_tick += 1
-            scheduler.dispatch(current_tick)
-            result = finalize()
-            if result is not None:
-                return result
-
-        result = finalize()
-        if result is not None:
-            return result
+        final_output = finalize()
+        if final_output is not None:
+            return final_output
         return 'No Output Generated'
 
 
-    def check_received_status(self):
-        for node_id, node in self.nodes.items():
-            print(f"节点 {node.name} (ID: {node.id}) 已接收消息数量: {len(node.received)}")
 
     def reset(self):
         """Reset the team to its initial state."""
