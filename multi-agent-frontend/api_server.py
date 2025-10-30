@@ -19,6 +19,7 @@ import json
 import threading
 import queue
 import glob
+import re
 from pathlib import Path
 
 import yaml
@@ -100,6 +101,27 @@ def load_default_team_configs():
 
     return default_teams
 
+
+def save_default_team_config(team_id: str, config: dict) -> str:
+    """Persist a default team configuration to the SourceFiles directory."""
+    DEFAULT_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+
+    safe_id = re.sub(r'[^a-zA-Z0-9_-]+', '_', team_id.strip() or 'default_team')
+    filename = f"{safe_id}.yaml"
+    path = DEFAULT_CONFIG_DIR / filename
+
+    metadata = dict(config.get("metadata") or {})
+    metadata.setdefault("id", safe_id)
+    metadata.setdefault("name", metadata.get("name") or safe_id)
+
+    persisted_config = dict(config)
+    persisted_config["metadata"] = metadata
+
+    with path.open("w", encoding="utf-8") as handle:
+        yaml.safe_dump(persisted_config, handle, allow_unicode=True, sort_keys=False)
+
+    return filename
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """健康检查接口"""
@@ -136,6 +158,94 @@ def get_default_teams():
         })
     except Exception as e:
         print(f"⚠️ Failed to enumerate default teams: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/default-teams', methods=['POST'])
+def save_default_team_endpoint():
+    """Persist a team configuration as a default template."""
+    try:
+        data = request.get_json(silent=True) or {}
+        config = data.get('config')
+        team_id = data.get('teamId') or (config or {}).get('id')
+        metadata = (config or {}).get('metadata') or {}
+
+        if not isinstance(config, dict) or not config:
+            return jsonify({
+                'success': False,
+                'error': 'Config payload is required'
+            }), 400
+
+        candidate_id = team_id or metadata.get('id') or metadata.get('name')
+        if not candidate_id:
+            candidate_id = f"default_{int(time.time())}"
+
+        filename = save_default_team_config(str(candidate_id), config)
+        return jsonify({
+            'success': True,
+            'teamId': candidate_id,
+            'filename': filename
+        })
+    except Exception as e:
+        print(f"⚠️ Failed to save default team: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/default-teams/<team_id>', methods=['DELETE'])
+def delete_default_team_endpoint(team_id):
+    """Remove a default team configuration from the SourceFiles directory."""
+    try:
+        data = request.get_json(silent=True) or {}
+        filename = data.get('filename')
+
+        teams = load_default_team_configs()
+        target = None
+
+        if filename:
+            target = next((team for team in teams if team.get('sourceFilename') == filename), None)
+
+        if not target:
+            target = next((team for team in teams if team.get('id') == team_id), None)
+
+        if not target:
+            return jsonify({
+                'success': False,
+                'error': 'Default team not found'
+            }), 404
+
+        candidate_filename = filename or target.get('sourceFilename')
+        path = DEFAULT_CONFIG_DIR / candidate_filename if candidate_filename else None
+
+        if not path or not path.exists():
+            safe_id = re.sub(r'[^a-zA-Z0-9_-]+', '_', team_id)
+            fallback_names = [
+                f"{team_id}.yaml",
+                f"{team_id}.yml",
+                f"{team_id}.json",
+                f"{safe_id}.yaml",
+                f"{safe_id}.yml",
+                f"{safe_id}.json",
+            ]
+            for name in fallback_names:
+                candidate = DEFAULT_CONFIG_DIR / name
+                if candidate.exists():
+                    path = candidate
+                    break
+
+        if not path or not path.exists():
+            return jsonify({
+                'success': False,
+                'error': 'Default configuration file not found'
+            }), 404
+
+        path.unlink()
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"⚠️ Failed to delete default team: {e}")
         return jsonify({
             'success': False,
             'error': str(e)

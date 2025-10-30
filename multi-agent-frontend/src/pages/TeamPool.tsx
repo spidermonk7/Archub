@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Layout, Typography, Tag, Space, Button, Spin, Dropdown, Modal, message } from 'antd';
 import type { MenuProps } from 'antd';
 import {
@@ -139,46 +139,84 @@ const TeamPool: React.FC = () => {
   const navigate = useNavigate();
   const [userTeams, setUserTeams] = useState<ApiTeam[]>([]);
   const [defaultTeams, setDefaultTeams] = useState<ApiTeam[]>([]);
+  const defaultTeamsRef = useRef<ApiTeam[]>([]);
   const [loadingUser, setLoadingUser] = useState<boolean>(false);
+  const [loadingDefault, setLoadingDefault] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchUserTeams = useCallback(async () => {
+  const fetchDefaultTeams = useCallback(async (): Promise<ApiTeam[]> => {
     try {
-      setLoadingUser(true);
-      setError(null);
-
-      const response = await fetch(`${API_BASE_URL}/api/teams`);
+      setLoadingDefault(true);
+      const response = await fetch(`${API_BASE_URL}/api/default-teams`);
       if (!response.ok) {
         throw new Error(`Server responded with status ${response.status}`);
       }
-
       const data = await response.json();
       if (!data.success) {
-        throw new Error(data.error || 'Failed to load teams');
+        throw new Error(data.error || 'Failed to load default teams');
       }
-
       const teams = (Array.isArray(data.teams) ? data.teams : []) as ApiTeam[];
-      const defaultIds = new Set(defaultTeams.map(team => team.id));
-      setUserTeams(
-        teams
-          .filter((team: ApiTeam) => !defaultIds.has(team.id))
-          .map((team: ApiTeam) => ({
-            ...team,
-            origin: 'user',
-          }))
-      );
+      const normalized = teams.map((team: ApiTeam) => ({
+        ...team,
+        origin: 'default' as const,
+      }));
+      setDefaultTeams(normalized);
+      defaultTeamsRef.current = normalized;
+      return teams;
     } catch (err) {
-      console.error('Failed to load teams', err);
-      setUserTeams([]);
-      setError(err instanceof Error ? err.message : 'Unable to load teams');
+      console.error('Failed to load default teams', err);
+      setDefaultTeams([]);
+      defaultTeamsRef.current = [];
+      return [];
     } finally {
-      setLoadingUser(false);
+      setLoadingDefault(false);
     }
-  }, [defaultTeams]);
+  }, []);
+
+  const fetchUserTeams = useCallback(
+    async (defaults?: ApiTeam[]): Promise<void> => {
+      try {
+        setLoadingUser(true);
+        setError(null);
+
+        const response = await fetch(`${API_BASE_URL}/api/teams`);
+        if (!response.ok) {
+          throw new Error(`Server responded with status ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to load teams');
+        }
+
+        const teams = (Array.isArray(data.teams) ? data.teams : []) as ApiTeam[];
+        const defaultList = defaults ?? defaultTeamsRef.current;
+        const defaultIds = new Set(defaultList.map(team => team.id));
+        setUserTeams(
+          teams
+            .filter((team: ApiTeam) => !defaultIds.has(team.id))
+            .map((team: ApiTeam) => ({
+              ...team,
+              origin: 'user',
+            }))
+        );
+      } catch (err) {
+        console.error('Failed to load teams', err);
+        setUserTeams([]);
+        setError(err instanceof Error ? err.message : 'Unable to load teams');
+      } finally {
+        setLoadingUser(false);
+      }
+    },
+    []
+  );
 
   useEffect(() => {
-    fetchUserTeams();
-  }, [fetchUserTeams]);
+    (async () => {
+      const defaults = await fetchDefaultTeams();
+      await fetchUserTeams(defaults);
+    })();
+  }, [fetchDefaultTeams, fetchUserTeams]);
 
   const stats = useMemo(() => {
     const allTeams = [...defaultTeams, ...userTeams];
@@ -214,8 +252,8 @@ const TeamPool: React.FC = () => {
   const handleBackHome = () => navigate('/');
   const handleDesignCustom = () => navigate('/builder');
   const handleRefresh = useCallback(() => {
-    fetchUserTeams();
-  }, [fetchUserTeams]);
+    fetchDefaultTeams().then(fetchUserTeams);
+  }, [fetchDefaultTeams, fetchUserTeams]);
   const handleDeleteTeam = useCallback(async (teamId: string, teamName: string) => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/teams/${teamId}`, {
@@ -226,7 +264,11 @@ const TeamPool: React.FC = () => {
         throw new Error(data.error || 'Failed to delete team');
       }
       setUserTeams(prev => prev.filter(team => team.id !== teamId));
-      setDefaultTeams(prev => prev.filter(team => team.id !== teamId));
+      setDefaultTeams(prev => {
+        const next = prev.filter(team => team.id !== teamId);
+        defaultTeamsRef.current = next;
+        return next;
+      });
       message.success(`Deleted ${teamName}.`);
     } catch (err) {
       console.error('Failed to delete team', err);
@@ -234,15 +276,77 @@ const TeamPool: React.FC = () => {
     }
   }, []);
 
-  const handleSetAsDefault = useCallback((team: ApiTeam) => {
-    const displayName = getDisplayName(team);
-    setDefaultTeams(prev => {
-      const filtered = prev.filter(existing => existing.id !== team.id);
-      return [...filtered, { ...team, origin: 'default' }];
-    });
-    setUserTeams(prev => prev.filter(existing => existing.id !== team.id));
-    message.success(`Set ${displayName} as default.`);
-  }, []);
+  const handleSetAsDefault = useCallback(
+    async (team: ApiTeam) => {
+      const displayName = getDisplayName(team);
+      try {
+        let config = team.configData;
+
+        if (!config) {
+          const response = await fetch(`${API_BASE_URL}/api/teams/${team.id}`);
+          if (!response.ok) {
+            throw new Error('Unable to load team configuration');
+          }
+          const data = await response.json();
+          if (!data.success || !data.team || !data.team.configData) {
+            throw new Error('Team configuration is missing');
+          }
+          config = data.team.configData as ConfigData;
+        }
+
+        const payloadConfig = config as ConfigData;
+        const response = await fetch(`${API_BASE_URL}/api/default-teams`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            teamId: team.id,
+            config: payloadConfig,
+          }),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || 'Failed to save default team');
+        }
+
+        const defaults = await fetchDefaultTeams();
+        await fetchUserTeams(defaults);
+        message.success(`Set ${displayName} as default.`);
+      } catch (err) {
+        console.error('Failed to set default team', err);
+        message.error('Failed to set this team as default.');
+      }
+    },
+    [fetchDefaultTeams, fetchUserTeams]
+  );
+
+  const handleDeleteDefaultTeam = useCallback(
+    async (team: ApiTeam) => {
+      const displayName = getDisplayName(team);
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/default-teams/${encodeURIComponent(team.id)}`,
+          {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              filename: team.sourceFilename,
+            }),
+          }
+        );
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || 'Failed to delete default team');
+        }
+        const defaults = await fetchDefaultTeams();
+        await fetchUserTeams(defaults);
+        message.success(`Deleted default ${displayName}.`);
+      } catch (err) {
+        console.error('Failed to delete default team', err);
+        message.error('Failed to delete this default team.');
+      }
+    },
+    [fetchDefaultTeams, fetchUserTeams]
+  );
 
   const confirmDeleteTeam = useCallback((team: ApiTeam) => {
     const displayName = getDisplayName(team);
@@ -255,6 +359,18 @@ const TeamPool: React.FC = () => {
       onOk: () => handleDeleteTeam(team.id, displayName),
     });
   }, [handleDeleteTeam]);
+
+  const confirmDeleteDefaultTeam = useCallback((team: ApiTeam) => {
+    const displayName = getDisplayName(team);
+    Modal.confirm({
+      title: `Delete default ${displayName}?`,
+      content: 'This removes the saved default template but keeps the original team.',
+      okText: 'Delete',
+      okButtonProps: { danger: true },
+      cancelText: 'Cancel',
+      onOk: () => handleDeleteDefaultTeam(team),
+    });
+  }, [handleDeleteDefaultTeam]);
 
   const openRunner = useCallback(async (team: ApiTeam, mode: 'preview' | 'execute') => {
     try {
@@ -294,7 +410,7 @@ const TeamPool: React.FC = () => {
     }
   }, [navigate]);
 
-  const renderTeamCard = (team: ApiTeam, allowContextMenu: boolean) => {
+  const renderTeamCard = (team: ApiTeam, variant: 'user' | 'default') => {
     const metadata = team.configData?.metadata ?? {};
     const displayName = getDisplayName(team);
     const baseDescription =
@@ -335,8 +451,8 @@ const TeamPool: React.FC = () => {
 
     const disableActions = Boolean(team.error);
 
-    const card = (
-      <div className="team-card">
+    const createCard = (key: string) => (
+      <div key={key} className="team-card">
         <div className="team-card__header">
           <div>
             <Title level={4}>{displayName}</Title>
@@ -400,42 +516,51 @@ const TeamPool: React.FC = () => {
       </div>
     );
 
-    if (!allowContextMenu) {
-      return React.cloneElement(card, { key: `default-${team.id}` });
-    }
-
-    const menuItems: MenuProps['items'] = [
-      {
-        key: 'set-default',
-        label: 'Set as default',
-        disabled: disableActions,
-      },
-      { type: 'divider' },
-      {
-        key: 'delete',
-        label: 'Delete',
-        danger: true,
-      },
-    ];
+    const menuItems: MenuProps['items'] =
+      variant === 'user'
+        ? [
+            {
+              key: 'set-default',
+              label: 'Set as default',
+              disabled: disableActions,
+            },
+            { type: 'divider' },
+            {
+              key: 'delete',
+              label: 'Delete',
+              danger: true,
+            },
+          ]
+        : [
+            {
+              key: 'delete-default',
+              label: 'Delete',
+              danger: true,
+            },
+          ];
 
     const menu: MenuProps = {
       items: menuItems,
       onClick: ({ key }) => {
-        if (key === 'set-default') {
-          handleSetAsDefault(team);
-        } else if (key === 'delete') {
-          confirmDeleteTeam(team);
+        if (variant === 'user') {
+          if (key === 'set-default') {
+            handleSetAsDefault(team);
+          } else if (key === 'delete') {
+            confirmDeleteTeam(team);
+          }
+        } else if (key === 'delete-default') {
+          confirmDeleteDefaultTeam(team);
         }
       },
     };
 
     return (
       <Dropdown
-        key={`user-${team.id}`}
+        key={`${variant}-${team.id}`}
         trigger={['contextMenu']}
         menu={menu}
       >
-        {React.cloneElement(card, { key: `user-${team.id}` })}
+        {createCard(`${variant}-${team.id}`)}
       </Dropdown>
     );
   };
@@ -457,7 +582,7 @@ const TeamPool: React.FC = () => {
               <Button
                 icon={<ReloadOutlined />}
                 onClick={handleRefresh}
-                loading={loadingUser}
+                loading={loadingUser || loadingDefault}
               >
                 Refresh
               </Button>
@@ -493,20 +618,25 @@ const TeamPool: React.FC = () => {
             <div className="team-section__title">
               <Title level={3}>Default Teams</Title>
               <Paragraph type="secondary">
-                Right-click a team below and choose “Set as default” to pin it here.
+                Right-click a saved default for actions like deleting it. Promote new entries from "Your Teams".
               </Paragraph>
             </div>
 
-            {defaultTeams.length === 0 ? (
+            {loadingDefault ? (
+              <div className="team-loading">
+                <Spin size="large" />
+                <Paragraph className="loading-copy">Loading default teams...</Paragraph>
+              </div>
+            ) : defaultTeams.length === 0 ? (
               <div className="empty-state glass">
                 <Title level={4}>No default teams yet</Title>
                 <Paragraph type="secondary">
-                  Right-click a team under “Your Teams” and set it as default to add it here.
+                  Right-click a team under "Your Teams" and set it as default to add it here.
                 </Paragraph>
               </div>
             ) : (
               <div className="teams-grid">
-                {defaultTeams.map(team => renderTeamCard(team, false))}
+                {defaultTeams.map(team => renderTeamCard(team, 'default'))}
               </div>
             )}
           </section>
@@ -540,7 +670,7 @@ const TeamPool: React.FC = () => {
               </div>
             ) : (
               <div className="teams-grid">
-                {userTeams.map(team => renderTeamCard(team, true))}
+                {userTeams.map(team => renderTeamCard(team, 'user'))}
               </div>
             )}
           </section>
