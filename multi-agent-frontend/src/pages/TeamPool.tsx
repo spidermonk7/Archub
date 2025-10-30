@@ -21,9 +21,8 @@ type TeamSize = 'small' | 'medium' | 'large';
 
 interface ConfigNode {
   id: string;
-  name: string;
-  type: string;
-  [key: string]: any;
+  name?: string;
+  type?: string;
 }
 
 interface ConfigData {
@@ -35,7 +34,7 @@ interface ConfigData {
 interface ApiTeam {
   id: string;
   name: string;
-  description: string;
+  description?: string;
   nodeCount?: number;
   edgeCount?: number;
   version?: string;
@@ -43,14 +42,16 @@ interface ApiTeam {
   updatedAt?: string;
   configData?: ConfigData;
   sourceFilename?: string;
+  originalTeamId?: string;
   origin?: 'default' | 'user';
   error?: string;
 }
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+const API_PREFIX = `${API_BASE_URL}/api`;
+
 const getDisplayName = (team: ApiTeam): string =>
   team.configData?.metadata?.name || team.name || team.id;
-
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
 
 const determineTeamSize = (nodeCount: number): TeamSize => {
   if (nodeCount <= 3) return 'small';
@@ -83,32 +84,33 @@ const deriveTags = (team: ApiTeam): string[] => {
     return metadataTags.map(tag => String(tag));
   }
 
-  if (team.configData?.nodes) {
+  const nodes = team.configData?.nodes;
+  if (nodes && nodes.length) {
     const typeTags = Array.from(
-      new Set(team.configData.nodes.map(node => node.type).filter(Boolean))
+      new Set(
+        nodes
+          .map(n => n.type ?? '')    // 把 undefined 转成空字符串，类型统一为 string
+          .filter(v => v.length > 0) // 过滤掉空字符串
+      )
     );
     return typeTags.map(toTitleCase);
   }
 
   return [];
+
 };
 
 const countAgentNodes = (team: ApiTeam): number =>
   team.configData?.nodes?.filter(node => node.type === 'agent').length ?? 0;
 
 const formatUpdatedTime = (value?: string): string => {
-  if (!value) {
-    return 'Updated moments ago';
-  }
+  if (!value) return 'Updated moments ago';
 
   const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return 'Updated moments ago';
-  }
+  if (Number.isNaN(parsed.getTime())) return 'Updated moments ago';
 
   const diffMs = Date.now() - parsed.getTime();
   const minutes = Math.floor(diffMs / 60000);
-
   if (minutes < 1) return 'Updated moments ago';
   if (minutes < 60) return `Updated ${minutes} min ago`;
 
@@ -118,10 +120,7 @@ const formatUpdatedTime = (value?: string): string => {
   const days = Math.floor(hours / 24);
   if (days < 7) return `Updated ${days} day${days > 1 ? 's' : ''} ago`;
 
-  return new Intl.DateTimeFormat('en-US', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(parsed);
+  return new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(parsed);
 };
 
 const renderStatusLabel = (status: TeamStatus): string => {
@@ -147,22 +146,27 @@ const TeamPool: React.FC = () => {
   const fetchDefaultTeams = useCallback(async (): Promise<ApiTeam[]> => {
     try {
       setLoadingDefault(true);
-      const response = await fetch(`${API_BASE_URL}/api/default-teams`);
+      setError(null);
+
+      const response = await fetch(`${API_PREFIX}/default-teams`);
       if (!response.ok) {
         throw new Error(`Server responded with status ${response.status}`);
       }
+
       const data = await response.json();
       if (!data.success) {
         throw new Error(data.error || 'Failed to load default teams');
       }
+
       const teams = (Array.isArray(data.teams) ? data.teams : []) as ApiTeam[];
-      const normalized = teams.map((team: ApiTeam) => ({
+      const normalized = teams.map(team => ({
         ...team,
         origin: 'default' as const,
       }));
+
       setDefaultTeams(normalized);
       defaultTeamsRef.current = normalized;
-      return teams;
+      return normalized;
     } catch (err) {
       console.error('Failed to load default teams', err);
       setDefaultTeams([]);
@@ -179,7 +183,7 @@ const TeamPool: React.FC = () => {
         setLoadingUser(true);
         setError(null);
 
-        const response = await fetch(`${API_BASE_URL}/api/teams`);
+        const response = await fetch(`${API_PREFIX}/teams`);
         if (!response.ok) {
           throw new Error(`Server responded with status ${response.status}`);
         }
@@ -191,14 +195,19 @@ const TeamPool: React.FC = () => {
 
         const teams = (Array.isArray(data.teams) ? data.teams : []) as ApiTeam[];
         const defaultList = defaults ?? defaultTeamsRef.current;
-        const defaultIds = new Set(defaultList.map(team => team.id));
+
+        const idsToExclude = new Set<string>();
+        defaultList.forEach(team => {
+          if (team.id) idsToExclude.add(team.id);
+          if (team.originalTeamId) idsToExclude.add(team.originalTeamId);
+        });
+
+        const filtered = teams.filter(team => !idsToExclude.has(team.id));
         setUserTeams(
-          teams
-            .filter((team: ApiTeam) => !defaultIds.has(team.id))
-            .map((team: ApiTeam) => ({
-              ...team,
-              origin: 'user',
-            }))
+          filtered.map(team => ({
+            ...team,
+            origin: 'user' as const,
+          }))
         );
       } catch (err) {
         console.error('Failed to load teams', err);
@@ -220,7 +229,6 @@ const TeamPool: React.FC = () => {
 
   const stats = useMemo(() => {
     const allTeams = [...defaultTeams, ...userTeams];
-
     if (!allTeams.length) {
       return { totalTeams: 0, totalNodes: 0, totalAgents: 0 };
     }
@@ -229,11 +237,11 @@ const TeamPool: React.FC = () => {
     let totalAgents = 0;
 
     allTeams.forEach(team => {
-      const nodesFromConfig = team.configData?.nodes ?? [];
-      const nodeCount = team.nodeCount ?? nodesFromConfig.length;
-
-      totalNodes += nodeCount;
-      totalAgents += nodesFromConfig.filter(node => node.type === 'agent').length;
+      const nodes = team.configData?.nodes ?? [];
+      const countedNodes = nodes.length || team.nodeCount || 0;
+      totalNodes += countedNodes;
+      const agentsFromNodes = nodes.filter(node => node.type === 'agent').length;
+      totalAgents += agentsFromNodes;
     });
 
     return {
@@ -250,31 +258,37 @@ const TeamPool: React.FC = () => {
     : 'unknown';
 
   const handleBackHome = () => navigate('/');
+
   const handleDesignCustom = () => navigate('/builder');
-  const handleRefresh = useCallback(() => {
-    fetchDefaultTeams().then(fetchUserTeams);
+
+  const handleRefresh = useCallback(async () => {
+    const defaults = await fetchDefaultTeams();
+    await fetchUserTeams(defaults);
   }, [fetchDefaultTeams, fetchUserTeams]);
-  const handleDeleteTeam = useCallback(async (teamId: string, teamName: string) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/teams/${teamId}`, {
-        method: 'DELETE',
-      });
-      const data = await response.json();
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Failed to delete team');
+
+  const handleDeleteTeam = useCallback(
+    async (teamId: string, teamName: string) => {
+      try {
+        const encodedId = encodeURIComponent(teamId);
+        const response = await fetch(`${API_PREFIX}/teams/${encodedId}`, {
+          method: 'DELETE',
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || 'Failed to delete team');
+        }
+
+        const defaults = await fetchDefaultTeams();
+        await fetchUserTeams(defaults);
+        message.success(`Deleted ${teamName}.`);
+      } catch (err) {
+        console.error('Failed to delete team', err);
+        const errorMsg = err instanceof Error ? err.message : 'Failed to delete this team.';
+        message.error(errorMsg);
       }
-      setUserTeams(prev => prev.filter(team => team.id !== teamId));
-      setDefaultTeams(prev => {
-        const next = prev.filter(team => team.id !== teamId);
-        defaultTeamsRef.current = next;
-        return next;
-      });
-      message.success(`Deleted ${teamName}.`);
-    } catch (err) {
-      console.error('Failed to delete team', err);
-      message.error('Failed to delete this team.');
-    }
-  }, []);
+    },
+    [fetchDefaultTeams, fetchUserTeams]
+  );
 
   const handleSetAsDefault = useCallback(
     async (team: ApiTeam) => {
@@ -283,7 +297,7 @@ const TeamPool: React.FC = () => {
         let config = team.configData;
 
         if (!config) {
-          const response = await fetch(`${API_BASE_URL}/api/teams/${team.id}`);
+          const response = await fetch(`${API_PREFIX}/teams/${encodeURIComponent(team.id)}`);
           if (!response.ok) {
             throw new Error('Unable to load team configuration');
           }
@@ -294,13 +308,12 @@ const TeamPool: React.FC = () => {
           config = data.team.configData as ConfigData;
         }
 
-        const payloadConfig = config as ConfigData;
-        const response = await fetch(`${API_BASE_URL}/api/default-teams`, {
+        const response = await fetch(`${API_PREFIX}/default-teams`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             teamId: team.id,
-            config: payloadConfig,
+            config,
           }),
         });
         const data = await response.json();
@@ -313,7 +326,8 @@ const TeamPool: React.FC = () => {
         message.success(`Set ${displayName} as default.`);
       } catch (err) {
         console.error('Failed to set default team', err);
-        message.error('Failed to set this team as default.');
+        const errorMsg = err instanceof Error ? err.message : 'Failed to set this team as default.';
+        message.error(errorMsg);
       }
     },
     [fetchDefaultTeams, fetchUserTeams]
@@ -324,12 +338,13 @@ const TeamPool: React.FC = () => {
       const displayName = getDisplayName(team);
       try {
         const response = await fetch(
-          `${API_BASE_URL}/api/default-teams/${encodeURIComponent(team.id)}`,
+          `${API_PREFIX}/default-teams/${encodeURIComponent(team.id)}`,
           {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               filename: team.sourceFilename,
+              originalTeamId: team.originalTeamId,
             }),
           }
         );
@@ -337,12 +352,19 @@ const TeamPool: React.FC = () => {
         if (!response.ok || !data.success) {
           throw new Error(data.error || 'Failed to delete default team');
         }
+
         const defaults = await fetchDefaultTeams();
         await fetchUserTeams(defaults);
-        message.success(`Deleted default ${displayName}.`);
+        if (data.removedOriginal) {
+          message.success(`Deleted ${displayName} and its original team.`);
+        } else {
+          message.success(`Deleted default ${displayName}.`);
+        }
       } catch (err) {
         console.error('Failed to delete default team', err);
-        message.error('Failed to delete this default team.');
+        const errorMsg =
+          err instanceof Error ? err.message : 'Failed to delete this default team.';
+        message.error(errorMsg);
       }
     },
     [fetchDefaultTeams, fetchUserTeams]
@@ -364,7 +386,7 @@ const TeamPool: React.FC = () => {
     const displayName = getDisplayName(team);
     Modal.confirm({
       title: `Delete default ${displayName}?`,
-      content: 'This removes the saved default template but keeps the original team.',
+      content: 'This removes the saved default configuration and its original team entry if present.',
       okText: 'Delete',
       okButtonProps: { danger: true },
       cancelText: 'Cancel',
@@ -372,56 +394,61 @@ const TeamPool: React.FC = () => {
     });
   }, [handleDeleteDefaultTeam]);
 
-  const openRunner = useCallback(async (team: ApiTeam, mode: 'preview' | 'execute') => {
-    try {
-      const isDefaultTeam = team.origin === 'default';
-      let config = team.configData;
+  const openRunner = useCallback(
+    async (team: ApiTeam, mode: 'preview' | 'execute') => {
+      try {
+        const isDefaultTeam = team.origin === 'default';
+        let config = team.configData;
 
-      if (!config && !isDefaultTeam) {
-        const response = await fetch(`${API_BASE_URL}/api/teams/${team.id}`);
-        if (!response.ok) {
-          throw new Error('Unable to load team configuration');
+        if (!config && !isDefaultTeam) {
+          const response = await fetch(`${API_PREFIX}/teams/${encodeURIComponent(team.id)}`);
+          if (!response.ok) {
+            throw new Error('Unable to load team configuration');
+          }
+          const data = await response.json();
+          if (!data.success || !data.team || !data.team.configData) {
+            throw new Error('Team configuration is missing');
+          }
+          config = data.team.configData as ConfigData;
         }
-        const data = await response.json();
-        if (!data.success || !data.team || !data.team.configData) {
+
+        if (!config) {
           throw new Error('Team configuration is missing');
         }
-        config = data.team.configData as ConfigData;
-      }
 
-      if (!config) {
-        throw new Error('Team configuration is missing');
-      }
+        sessionStorage.setItem('selectedTeamConfig', JSON.stringify(config));
+        sessionStorage.setItem('selectedTeamName', getDisplayName(team));
+        sessionStorage.setItem('selectedTeamId', team.id);
+        if (team.sourceFilename) {
+          sessionStorage.setItem('selectedTeamFilename', team.sourceFilename);
+        } else {
+          sessionStorage.setItem('selectedTeamFilename', `${team.id}.yaml`);
+        }
+        sessionStorage.setItem('selectedTeamMode', mode);
 
-      sessionStorage.setItem('selectedTeamConfig', JSON.stringify(config));
-      sessionStorage.setItem('selectedTeamName', config.metadata?.name || team.name || team.id);
-      sessionStorage.setItem('selectedTeamId', team.id);
-      if (team.sourceFilename) {
-        sessionStorage.setItem('selectedTeamFilename', team.sourceFilename);
-      } else {
-        sessionStorage.setItem('selectedTeamFilename', `${team.id}.yaml`);
+        navigate('/python-runner');
+      } catch (err) {
+        console.error('Failed to open Python Runner', err);
+        message.error('Failed to open Python Runner for this team.');
       }
-      sessionStorage.setItem('selectedTeamMode', mode);
-
-      navigate('/python-runner');
-    } catch (err) {
-      console.error('Failed to open Python Runner', err);
-      message.error('Failed to open Python Runner for this team.');
-    }
-  }, [navigate]);
+    },
+    [navigate]
+  );
 
   const renderTeamCard = (team: ApiTeam, variant: 'user' | 'default') => {
     const metadata = team.configData?.metadata ?? {};
     const displayName = getDisplayName(team);
-    const baseDescription =
-      metadata.description || team.description || 'This team does not have a description yet.';
-    const description = team.error ? `Warning: ${team.error}` : baseDescription;
+    const description =
+      team.error ||
+      metadata.description ||
+      team.description ||
+      'This team does not have a description yet.';
+
     const rawVersion = metadata.version || team.version || '1.0';
     const versionLabel = rawVersion.toLowerCase().startsWith('v') ? rawVersion : `v${rawVersion}`;
 
     const nodes = team.configData?.nodes ?? [];
     const edges = team.configData?.edges ?? [];
-
     const nodeCount = team.nodeCount ?? nodes.length;
     const edgeCount = team.edgeCount ?? edges.length;
     const agentCount = countAgentNodes(team);
@@ -430,13 +457,15 @@ const TeamPool: React.FC = () => {
     const sizeLabel = formatSizeLabel(size);
 
     const tags = deriveTags(team);
-    const updatedLabel = formatUpdatedTime(metadata.compiledAt || team.updatedAt || team.createdAt);
+    const updatedLabel = formatUpdatedTime(
+      metadata.compiledAt || team.updatedAt || team.createdAt
+    );
 
-    const metadataStatus = (metadata.status as TeamStatus) ?? 'connected';
+    const statusFromMetadata = (metadata.status as TeamStatus) ?? 'connected';
     const normalizedStatus: TeamStatus =
-      metadataStatus === 'disconnected'
+      statusFromMetadata === 'disconnected'
         ? 'disconnected'
-        : metadataStatus === 'unknown'
+        : statusFromMetadata === 'unknown'
         ? 'unknown'
         : 'connected';
 
@@ -451,8 +480,8 @@ const TeamPool: React.FC = () => {
 
     const disableActions = Boolean(team.error);
 
-    const createCard = (key: string) => (
-      <div key={key} className="team-card">
+    const card = (
+      <div key={`${variant}-${team.id}`} className="team-card">
         <div className="team-card__header">
           <div>
             <Title level={4}>{displayName}</Title>
@@ -470,9 +499,7 @@ const TeamPool: React.FC = () => {
           </Space>
         </div>
 
-        <Paragraph className="team-description">
-          {description}
-        </Paragraph>
+        <Paragraph className="team-description">{description}</Paragraph>
 
         <div className="team-card__stats">
           <div className="stat-chip">
@@ -524,7 +551,7 @@ const TeamPool: React.FC = () => {
               label: 'Set as default',
               disabled: disableActions,
             },
-            { type: 'divider' },
+            { type: 'divider' as const },
             {
               key: 'delete',
               label: 'Delete',
@@ -539,28 +566,26 @@ const TeamPool: React.FC = () => {
             },
           ];
 
-    const menu: MenuProps = {
-      items: menuItems,
-      onClick: ({ key }) => {
-        if (variant === 'user') {
-          if (key === 'set-default') {
-            handleSetAsDefault(team);
-          } else if (key === 'delete') {
-            confirmDeleteTeam(team);
-          }
-        } else if (key === 'delete-default') {
-          confirmDeleteDefaultTeam(team);
-        }
-      },
-    };
-
     return (
       <Dropdown
         key={`${variant}-${team.id}`}
         trigger={['contextMenu']}
-        menu={menu}
+        menu={{
+          items: menuItems,
+          onClick: ({ key }) => {
+            if (variant === 'user') {
+              if (key === 'set-default') {
+                handleSetAsDefault(team);
+              } else if (key === 'delete') {
+                confirmDeleteTeam(team);
+              }
+            } else if (key === 'delete-default') {
+              confirmDeleteDefaultTeam(team);
+            }
+          },
+        }}
       >
-        {createCard(`${variant}-${team.id}`)}
+        {card}
       </Dropdown>
     );
   };
@@ -570,7 +595,9 @@ const TeamPool: React.FC = () => {
       <div className="team-pool-hero">
         <div className="team-hero-inner">
           <div className="team-hero-text">
-            <Tag className="hero-tag" bordered={false}>Team Library</Tag>
+            <Tag className="hero-tag" bordered={false}>
+              Team Library
+            </Tag>
             <Title level={2}>Team Pool</Title>
             <Paragraph type="secondary">
               All compiled teams appear here automatically. Refresh after saving a team in the builder to see it on the dashboard.
@@ -593,9 +620,7 @@ const TeamPool: React.FC = () => {
           </div>
 
           <div className="team-hero-status">
-            <div className={`api-pill ${apiStatus}`}>
-              {renderStatusLabel(apiStatus)}
-            </div>
+            <div className={`api-pill ${apiStatus}`}>{renderStatusLabel(apiStatus)}</div>
             <div className="hero-stat">
               <span className="stat-value">{stats.totalTeams}</span>
               <span className="stat-label">Teams available</span>
@@ -676,11 +701,7 @@ const TeamPool: React.FC = () => {
           </section>
 
           <div className="team-pool-footer">
-            <Button
-              type="default"
-              icon={<PlusOutlined />}
-              onClick={handleDesignCustom}
-            >
+            <Button type="default" icon={<PlusOutlined />} onClick={handleDesignCustom}>
               Create new team
             </Button>
           </div>

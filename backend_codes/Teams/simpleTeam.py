@@ -247,6 +247,7 @@ class SimpleTeam(BaseTeam):
 
         final_output = None
         while current_tick < max_ticks:
+            print(f"\n=== Tick {current_tick} ===")
             
             # 传递消息
             for edge in self.edges.values():
@@ -258,18 +259,14 @@ class SimpleTeam(BaseTeam):
                 return final_output
 
             # 处理节点
-            has_activity = False
             for node_id, node in self.nodes.items():
                 if getattr(node, 'received', []):
-                    has_activity = True
                     node.process()
                     node.received = []
                     # 加载输出到边
                     for edge in self.edges_by_source.get(node_id, []):
                         edge.load()
-
-            print(f"\n=== Tick {current_tick} (活动: {has_activity}) ===")
-          
+ 
             current_tick += 1
             
             

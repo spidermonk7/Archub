@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Flask API Server for Multi-Agent Team Runner
-前端和Python后端的HTTP通信接口，使用SQLite数据库存储团队配置
+前端和Python后端的HTTP通信接口，使用SQLite数据库存储团队配�?
 """
 
 from flask import Flask, request, jsonify, Response
@@ -82,6 +82,7 @@ def load_default_team_configs():
                 "edgeCount": len(edges),
                 "configData": config_data,
                 "sourceFilename": config_path.name,
+                "originalTeamId": metadata.get("originalId"),
                 "origin": "default",
             })
         except Exception as exc:
@@ -95,6 +96,7 @@ def load_default_team_configs():
                 "edgeCount": 0,
                 "configData": {},
                 "sourceFilename": config_path.name,
+                "originalTeamId": None,
                 "origin": "default",
                 "error": str(exc),
             })
@@ -113,6 +115,7 @@ def save_default_team_config(team_id: str, config: dict) -> str:
     metadata = dict(config.get("metadata") or {})
     metadata.setdefault("id", safe_id)
     metadata.setdefault("name", metadata.get("name") or safe_id)
+    metadata.setdefault("originalId", str(team_id))
 
     persisted_config = dict(config)
     persisted_config["metadata"] = metadata
@@ -124,7 +127,7 @@ def save_default_team_config(team_id: str, config: dict) -> str:
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
-    """健康检查接口"""
+    """健康检查接�?"""
     stats = db.get_stats()
     return jsonify({
         'status': 'ok',
@@ -134,7 +137,7 @@ def health_check():
 
 @app.route('/api/teams', methods=['GET'])
 def get_teams():
-    """获取所有团队"""
+    """获取所有团队信息"""
     try:
         teams = db.get_all_teams()
         return jsonify({
@@ -199,8 +202,10 @@ def save_default_team_endpoint():
 def delete_default_team_endpoint(team_id):
     """Remove a default team configuration from the SourceFiles directory."""
     try:
+        print(f"Attempting to delete default team: {team_id}")
         data = request.get_json(silent=True) or {}
         filename = data.get('filename')
+        requested_original_id = data.get('originalTeamId')
 
         teams = load_default_team_configs()
         target = None
@@ -243,7 +248,17 @@ def delete_default_team_endpoint(team_id):
             }), 404
 
         path.unlink()
-        return jsonify({'success': True})
+
+        original_id = (
+            requested_original_id
+            or target.get('configData', {}).get('metadata', {}).get('originalId')
+            or target.get('originalTeamId')
+        )
+        removed_original = False
+        if original_id:
+            removed_original = db.delete_team(str(original_id))
+
+        return jsonify({'success': True, 'removedOriginal': removed_original})
     except Exception as e:
         print(f"⚠️ Failed to delete default team: {e}")
         return jsonify({
@@ -273,7 +288,7 @@ def save_team():
         })
         
     except Exception as e:
-        print(f"❌ Error saving team: {e}")
+        print(f"�?Error saving team: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -284,6 +299,11 @@ def get_team(team_id):
     """获取指定团队"""
     try:
         team = db.get_team(team_id)
+        "Also try to load from default teams in SourceFiles, add those to the teams too."
+        if not team:
+            default_teams = load_default_team_configs()
+            team = next((t for t in default_teams if t.get('id') == team_id), None)
+
         if team:
             return jsonify({
                 'success': True,
@@ -305,6 +325,7 @@ def get_team(team_id):
 def delete_team(team_id):
     """删除团队"""
     try:
+        print(f"Attempting to delete team: {team_id}")
         success = db.delete_team(team_id)
         if success:
             return jsonify({
@@ -318,6 +339,7 @@ def delete_team(team_id):
             }), 404
             
     except Exception as e:
+        print(f"⚠️ Error deleting team: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -370,7 +392,7 @@ def load_team_for_running():
         
         config = team['configData']
         
-        # 创建runner实例并设置配置
+        # 创建runner实例并设置配�?
         runner = SimpleTeamRunner()
         runner.config = config
         runner.nodes = config.get('nodes', [])
@@ -380,7 +402,7 @@ def load_team_for_running():
         current_runner = runner
         current_config = config
         
-        print(f"✅ Successfully loaded team: {team['name']}")
+        print(f"�?Successfully loaded team: {team['name']}")
         print(f"   Nodes: {len(config.get('nodes', []))}")
         print(f"   Edges: {len(config.get('edges', []))}")
         
@@ -391,7 +413,7 @@ def load_team_for_running():
         })
         
     except Exception as e:
-        print(f"❌ Error loading team: {e}")
+        print(f"�?Error loading team: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -407,7 +429,7 @@ def process_input():
         print(f"🔍 DEBUG: current_config exists = {current_config is not None}")
         
         if not current_runner or not current_config:
-            print("❌ ERROR: No team loaded")
+            print("�?ERROR: No team loaded")
             return jsonify({
                 'success': False,
                 'error': 'No team loaded. Please load a team first.'
@@ -417,7 +439,7 @@ def process_input():
         print(f"🔍 DEBUG: Received data = {data}")
         
         if not data:
-            print("❌ ERROR: No JSON data received")
+            print("�?ERROR: No JSON data received")
             return jsonify({
                 'success': False,
                 'error': 'No JSON data received'
@@ -427,13 +449,13 @@ def process_input():
         print(f"🔍 DEBUG: user_input = '{user_input}'")
         
         if not user_input:
-            print("❌ ERROR: Input is empty")
+            print("�?ERROR: Input is empty")
             return jsonify({
                 'success': False,
                 'error': 'Input is required'
             }), 400
         
-        # 处理输入并生成输出
+        # 处理输入并生成输�?
         result = current_runner.process_input_output(user_input, current_config)
         print(f"🔍 DEBUG: result = '{result}'")
         # 生成处理日志
@@ -457,7 +479,7 @@ def process_input():
             output_node = output_nodes[0]
             processing_log.append(f"📤 输出节点 [{output_node.get('name')}] 生成结果")
         
-        processing_log.append("✅ 处理完成")
+        processing_log.append("�?处理完成")
         
         response_data = {
             'success': True,
@@ -467,13 +489,13 @@ def process_input():
             'timestamp': time.time()
         }
         
-        print(f"✅ Successfully processed input: '{user_input}'")
+        print(f"�?Successfully processed input: '{user_input}'")
         print(f"   Output: '{result}'")
         
         return jsonify(response_data)
         
     except Exception as e:
-        print(f"❌ ERROR: Exception in process_input: {e}")
+        print(f"�?ERROR: Exception in process_input: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({
@@ -492,7 +514,7 @@ def run_sse():
         print(f"🔍 DEBUG: current_config exists = {current_config is not None}")
         
         if not current_runner or not current_config:
-            print("❌ ERROR: No team loaded")
+            print("�?ERROR: No team loaded")
             return jsonify({
                 'success': False,
                 'error': 'No team loaded. Please load a team first.'
@@ -502,7 +524,7 @@ def run_sse():
         print(f"🔍 DEBUG: user_input = '{user_input}'")
         
         if not user_input:
-            print("❌ ERROR: Input is empty")
+            print("�?ERROR: Input is empty")
             return jsonify({
                 'success': False,
                 'error': 'Input is required'
@@ -612,7 +634,8 @@ def load_config():
     
     try:
         data = request.get_json()
-        filename = data.get('filename') if data else None
+        filename = data.get('filename')
+        requested_original_id = data.get('originalTeamId')
         
         if not filename:
             return jsonify({
@@ -632,7 +655,7 @@ def load_config():
         
         config = team['configData']
         
-        # 创建runner实例并设置配置
+        # 创建runner实例并设置配�?
         runner = SimpleTeamRunner()
         runner.config = config
         runner.nodes = config.get('nodes', [])
@@ -642,7 +665,7 @@ def load_config():
         current_runner = runner
         current_config = config
         
-        print(f"✅ Successfully loaded config: {filename}")
+        print(f"�?Successfully loaded config: {filename}")
         print(f"   Nodes: {len(config.get('nodes', []))}")
         print(f"   Edges: {len(config.get('edges', []))}")
         
@@ -653,19 +676,19 @@ def load_config():
         })
         
     except Exception as e:
-        print(f"❌ Error loading config: {e}")
+        print(f"�?Error loading config: {e}")
         return jsonify({
             'success': False,
             'error': str(e)
         }), 500
 
 if __name__ == '__main__':
-    print("🚀 启动 Multi-Agent Team Runner API 服务器...")
+    print("🚀 启动 Multi-Agent Team Runner API 服务�?..")
     print("📡 服务器地址: http://localhost:5000")
-    print("🗄️ 数据库: SQLite (teams.db)")
+    print("🗄�?数据�? SQLite (teams.db)")
     print("📋 可用接口:")
-    print("   GET  /api/health - 健康检查")
-    print("   GET  /api/teams - 获取所有团队")
+    print("   GET  /api/health - 健康检查接口")
+    print("   GET  /api/teams - 获取所有团队信息")
     print("   POST /api/teams - 保存团队配置")
     print("   GET  /api/teams/<id> - 获取指定团队")
     print("   DELETE /api/teams/<id> - 删除团队")
@@ -673,7 +696,7 @@ if __name__ == '__main__':
     print("   POST /api/load-team - 加载团队用于运行")
     print("   POST /api/process-input - 处理用户输入")
     print("   POST /api/reset - 重置会话")
-    print("   --- 兼容性接口 ---")
+    print("   --- 兼容性接�?---")
     print("   GET  /api/configs - 获取配置列表（兼容）")
     print("   POST /api/load-config - 加载配置（兼容）")
     print("-" * 50)
