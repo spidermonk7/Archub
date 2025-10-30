@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Layout, Typography, Tag, Space, Button, Spin, Dropdown, Modal, message } from 'antd';
+import { Layout, Typography, Tag, Space, Button, Spin, Dropdown, App } from 'antd';
 import type { MenuProps } from 'antd';
 import {
   TeamOutlined,
@@ -136,6 +136,7 @@ const renderStatusLabel = (status: TeamStatus): string => {
 
 const TeamPool: React.FC = () => {
   const navigate = useNavigate();
+  const { modal, message } = App.useApp();
   const [userTeams, setUserTeams] = useState<ApiTeam[]>([]);
   const [defaultTeams, setDefaultTeams] = useState<ApiTeam[]>([]);
   const defaultTeamsRef = useRef<ApiTeam[]>([]);
@@ -268,26 +269,31 @@ const TeamPool: React.FC = () => {
 
   const handleDeleteTeam = useCallback(
     async (teamId: string, teamName: string) => {
+      console.log(`🗑️ Starting delete for team: ${teamId} (${teamName})`);
       try {
         const encodedId = encodeURIComponent(teamId);
+        console.log(`🌐 Making DELETE request to: ${API_PREFIX}/teams/${encodedId}`);
         const response = await fetch(`${API_PREFIX}/teams/${encodedId}`, {
           method: 'DELETE',
         });
+        console.log(`📡 Response status: ${response.status}`);
         const data = await response.json();
+        console.log(`📦 Response data:`, data);
         if (!response.ok || !data.success) {
           throw new Error(data.error || 'Failed to delete team');
         }
 
+        console.log(`✅ Successfully deleted team, refreshing data...`);
         const defaults = await fetchDefaultTeams();
         await fetchUserTeams(defaults);
         message.success(`Deleted ${teamName}.`);
       } catch (err) {
-        console.error('Failed to delete team', err);
+        console.error('❌ Failed to delete team', err);
         const errorMsg = err instanceof Error ? err.message : 'Failed to delete this team.';
         message.error(errorMsg);
       }
     },
-    [fetchDefaultTeams, fetchUserTeams]
+    [fetchDefaultTeams, fetchUserTeams, message]
   );
 
   const handleSetAsDefault = useCallback(
@@ -330,7 +336,7 @@ const TeamPool: React.FC = () => {
         message.error(errorMsg);
       }
     },
-    [fetchDefaultTeams, fetchUserTeams]
+    [fetchDefaultTeams, fetchUserTeams, message]
   );
 
   const handleDeleteDefaultTeam = useCallback(
@@ -371,24 +377,31 @@ const TeamPool: React.FC = () => {
         message.error(errorMsg);
       }
     },
-    [fetchDefaultTeams, fetchUserTeams]
+    [fetchDefaultTeams, fetchUserTeams, message]
   );
 
   const confirmDeleteTeam = useCallback((team: ApiTeam) => {
     const displayName = getDisplayName(team);
-    Modal.confirm({
+    console.log(`🚨 Showing delete confirmation for team: ${team.id} (${displayName})`);
+    modal.confirm({
       title: `Delete ${displayName}?`,
       content: 'Deleting a team cannot be undone.',
       okText: 'Delete',
       okButtonProps: { danger: true },
       cancelText: 'Cancel',
-      onOk: () => handleDeleteTeam(team.id, displayName),
+      onOk: () => {
+        console.log(`✅ User confirmed deletion for team: ${team.id}`);
+        return handleDeleteTeam(team.id, displayName);
+      },
+      onCancel: () => {
+        console.log(`❌ User cancelled deletion for team: ${team.id}`);
+      },
     });
-  }, [handleDeleteTeam]);
+  }, [handleDeleteTeam, modal]);
 
   const confirmDeleteDefaultTeam = useCallback((team: ApiTeam) => {
     const displayName = getDisplayName(team);
-    Modal.confirm({
+    modal.confirm({
       title: `Delete default ${displayName}?`,
       content: 'This removes the saved default configuration and its original team entry if present.',
       okText: 'Delete',
@@ -396,7 +409,7 @@ const TeamPool: React.FC = () => {
       cancelText: 'Cancel',
       onOk: () => handleDeleteDefaultTeam(team),
     });
-  }, [handleDeleteDefaultTeam]);
+  }, [handleDeleteDefaultTeam, modal]);
 
   const openRunner = useCallback(
     async (team: ApiTeam, mode: 'preview' | 'execute') => {
@@ -436,7 +449,7 @@ const TeamPool: React.FC = () => {
         message.error('Failed to open Python Runner for this team.');
       }
     },
-    [navigate]
+    [navigate, message]
   );
 
   const renderTeamCard = (team: ApiTeam, variant: 'user' | 'default') => {
@@ -577,13 +590,17 @@ const TeamPool: React.FC = () => {
         menu={{
           items: menuItems,
           onClick: ({ key }) => {
+            console.log(`🖱️ Menu item clicked: ${key} for team: ${team.id} (variant: ${variant})`);
             if (variant === 'user') {
               if (key === 'set-default') {
+                console.log(`🌟 Setting team as default: ${team.id}`);
                 handleSetAsDefault(team);
               } else if (key === 'delete') {
+                console.log(`🗑️ Triggering delete confirmation for user team: ${team.id}`);
                 confirmDeleteTeam(team);
               }
             } else if (key === 'delete-default') {
+              console.log(`🗑️ Triggering delete confirmation for default team: ${team.id}`);
               confirmDeleteDefaultTeam(team);
             }
           },

@@ -41,11 +41,7 @@ class TeamDatabase:
                 )
             ''')
             
-            # 创建索引
-            cursor.execute('CREATE INDEX IF NOT EXISTS idx_teams_name ON teams(name)')
-            cursor.execute('CREATE INDEX IF NOT EXISTS idx_teams_created_at ON teams(created_at)')
-            cursor.execute('CREATE INDEX IF NOT EXISTS idx_teams_origin ON teams(origin)')
-            
+            # 检查并添加缺失的列
             existing_columns = self._get_table_columns(cursor, 'teams')
             if 'origin' not in existing_columns:
                 cursor.execute("ALTER TABLE teams ADD COLUMN origin TEXT DEFAULT 'user'")
@@ -53,6 +49,11 @@ class TeamDatabase:
                 cursor.execute("ALTER TABLE teams ADD COLUMN source_filename TEXT")
             if 'original_team_id' not in existing_columns:
                 cursor.execute("ALTER TABLE teams ADD COLUMN original_team_id TEXT")
+            
+            # 创建索引 - 在列确保存在后
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_teams_name ON teams(name)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_teams_created_at ON teams(created_at)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_teams_origin ON teams(origin)')
             
             conn.commit()
             print(f"✅ 数据库初始化完成: {self.db_path.resolve()}")

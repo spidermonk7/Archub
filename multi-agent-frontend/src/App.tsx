@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ConfigProvider, theme as antdTheme } from 'antd';
+import { ConfigProvider, App, theme as antdTheme } from 'antd';
 import TopNav from './components/TopNav';
 import HomePage from './pages/HomePage';
 import GraphBuilder from './pages/GraphBuilder';
@@ -12,7 +12,7 @@ import PythonRunner from './pages/PythonRunner';
 import ToolPool from './pages/ToolPool';
 import './App.css';
 
-const App: React.FC = () => {
+const MainApp: React.FC = () => {
   return (
     <ConfigProvider
       theme={{
@@ -29,27 +29,29 @@ const App: React.FC = () => {
         },
       }}
     >
-      <Router>
-        <div className="App">
-          <div className="app-shell">
-            <TopNav />
-            <main className="page-body">
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/builder" element={<GraphBuilder />} />
-                <Route path="/team-pool" element={<TeamPool />} />
-                <Route path="/agent-pool" element={<AgentPool />} />
-                <Route path="/run-team" element={<RunTeam />} />
-                <Route path="/runner" element={<GraphRunner />} />
-                <Route path="/python-runner" element={<PythonRunner />} />
-                <Route path="/tool-pool" element={<ToolPool />} />
-              </Routes>
-            </main>
+      <App>
+        <Router>
+          <div className="App">
+            <div className="app-shell">
+              <TopNav />
+              <main className="page-body">
+                <Routes>
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/builder" element={<GraphBuilder />} />
+                  <Route path="/team-pool" element={<TeamPool />} />
+                  <Route path="/agent-pool" element={<AgentPool />} />
+                  <Route path="/run-team" element={<RunTeam />} />
+                  <Route path="/runner" element={<GraphRunner />} />
+                  <Route path="/python-runner" element={<PythonRunner />} />
+                  <Route path="/tool-pool" element={<ToolPool />} />
+                </Routes>
+              </main>
+            </div>
           </div>
-        </div>
-      </Router>
+        </Router>
+      </App>
     </ConfigProvider>
   );
 };
 
-export default App;
+export default MainApp;
