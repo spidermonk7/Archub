@@ -4,7 +4,7 @@ import { validateGraph } from '../src/utils/graphValidation';
 const testNodes = [
   {
     id: 'input-node',
-    name: '用户输入',
+    name: 'User Input',
     type: 'input',
     description: '接收用户输入的入口节点',
     config: {},
@@ -12,7 +12,7 @@ const testNodes = [
   },
   {
     id: 'output-node', 
-    name: '结果输出',
+    name: 'User Output',
     type: 'output',
     description: '向用户返回结果的出口节点',
     config: {},

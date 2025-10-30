@@ -196,7 +196,7 @@ const NodeModal: React.FC<NodeModalProps> = ({ visible, onCancel, onSubmit }) =>
       title={
         <Space>
           <PlusOutlined />
-          新建节点
+          Add Node
         </Space>
       }
       open={visible}

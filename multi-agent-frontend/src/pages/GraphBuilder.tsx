@@ -58,12 +58,12 @@ const GraphBuilder: React.FC = () => {
   const createDefaultNodes = () => {
     const inputNode: Node = {
       id: 'input-node',
-      name: '用户输入',
+      name: 'User Input',
       type: 'input',
-      description: '接收用户输入的入口节点',
+      description: 'Accepts user input as the entry node',
       config: {
         inputType: 'text',
-        placeholder: '请输入您的需求...',
+        placeholder: 'Please enter your request...',
         validation: '',
       },
       position: { x: 100, y: 200 },
@@ -71,13 +71,13 @@ const GraphBuilder: React.FC = () => {
 
     const outputNode: Node = {
       id: 'output-node',
-      name: '结果输出',
+      name: 'User Output',
       type: 'output',
-      description: '向用户返回结果的出口节点',
+      description: 'Returns results to the user as the exit node',
       config: {
         outputFormat: 'text',
         template: '',
-        successMessage: '处理完成',
+        successMessage: 'Processing complete',
       },
       position: { x: 600, y: 200 },
     };
@@ -95,9 +95,9 @@ const GraphBuilder: React.FC = () => {
       await saveNodeConfig(newNode);
       setNodes(prev => [...prev, newNode]);
       setIsAddNodeModalVisible(false);
-      message.success('节点创建成功');
+      message.success('Node created successfully');
     } catch (error) {
-      message.error('节点创建失败');
+      message.error('Node creation failed');
     }
   }, []);
 
@@ -388,21 +388,21 @@ const GraphBuilder: React.FC = () => {
             icon={<PlusOutlined />}
             onClick={() => setIsAddNodeModalVisible(true)}
           >
-            新建节点
+            Node
           </Button>
           <Button
             icon={<LinkOutlined />}
             onClick={handleStartEdgeCreation}
             disabled={nodes.length < 2 || isEdgeCreationMode}
           >
-            建立连接
+            Connection
           </Button>
           {isEdgeCreationMode && (
-            <Button onClick={handleStopEdgeCreation}>取消连接</Button>
+            <Button onClick={handleStopEdgeCreation}>Cancel Connection</Button>
           )}
-          <Button onClick={() => setIsAttachPanelVisible(true)}>组件挂载</Button>
+          <Button onClick={() => setIsAttachPanelVisible(true)}>Component</Button>
           <Button icon={<FolderOpenOutlined />} onClick={handleLoadGraph}>
-            加载配置
+            Load
           </Button>
           <Button
             icon={<PlayCircleOutlined />}
@@ -410,7 +410,7 @@ const GraphBuilder: React.FC = () => {
             loading={isCompiling}
             disabled={nodes.length === 0}
           >
-            编译图
+            Compile
           </Button>
         </Space>
       </div>
@@ -493,7 +493,7 @@ const GraphBuilder: React.FC = () => {
         title={
           <Space align="center" size="middle">
             <CheckCircleOutlined className="compile-success-icon" />
-            团队创建成功！
+            Successfully Compiled!
           </Space>
         }
         open={isSuccessModalVisible}
@@ -569,13 +569,13 @@ const GraphBuilder: React.FC = () => {
 
       {/* 验证警告Modal */}
       <Modal
-        title="图形验证警告"
+        title="Validation Warnings"
         open={validationWarningModal.visible}
         onOk={validationWarningModal.onConfirm}
         onCancel={() => setValidationWarningModal({ visible: false, content: '', onConfirm: () => {} })}
         width={500}
-        okText="继续编译"
-        cancelText="取消"
+        okText="Keep Going"
+        cancelText="Cancel"
       >
         <div style={{ whiteSpace: 'pre-line' }}>
           {validationWarningModal.content}
