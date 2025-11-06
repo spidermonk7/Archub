@@ -137,25 +137,20 @@ class SimpleTeamRunner:
         
         print("="*50)
     
-    def process_input_output(self, user_input: str, config: Dict[str, Any]) -> str:
-        """处理用户输入并生成输出"""
-        # 简单的输入输出处理逻辑
-        nodes = config.get('nodes', [])
-        
-
+    def process_input_output(self, user_input: str, config: Dict[str, Any], attachments: Optional[List[Dict[str, Any]]] = None) -> str:
+        """Process a single user input and return the team's output."""
         self.team = SimpleTeam(
-            goal =  user_input, 
-            config = config
+            goal=user_input,
+            config=config,
+            input_attachments=attachments,
         )
 
         output_msg = self.team.run()
-
-        # 生成输出
-        output = f"团队处理结果: {output_msg}"
+        output = f"Team output: {output_msg}"
 
         return output
 
-    def process_input_output_streaming(self, user_input: str, config: Dict[str, Any], emit) -> str:
+    def process_input_output_streaming(self, user_input: str, config: Dict[str, Any], emit, attachments: Optional[List[Dict[str, Any]]] = None) -> str:
         """Process user input but emit telemetry events via provided emit callback."""
         run_id = str(uuid4())
         team = SimpleTeam(
@@ -163,11 +158,12 @@ class SimpleTeamRunner:
             config=config,
             emit=emit,
             run_id=run_id,
+            input_attachments=attachments,
         )
         output_msg = team.run()
-        output = f"团队处理结果: {output_msg}"
+        output = f"Team output: {output_msg}"
         return output
-    
+
     def run_interactive_session(self):
         """运行交互式会话"""
         print("\n🤖 多智能体团队运行器")

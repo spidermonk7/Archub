@@ -4,7 +4,7 @@ Flask API Server for Multi-Agent Team Runner
 前端和Python后端的HTTP通信接口，使用SQLite数据库存储团队配�?
 """
 
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify, Response, send_file
 from flask_cors import CORS
 import os
 import sys
@@ -20,8 +20,11 @@ import threading
 import queue
 import glob
 import re
+import hashlib
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from uuid import uuid4
+from werkzeug.utils import secure_filename
 
 import yaml
 
@@ -37,6 +40,68 @@ current_config = None
 
 DEFAULT_CONFIG_DIR = Path("./SourceFiles")
 DEFAULT_CONFIG_PATTERNS = ("*.yaml", "*.yml", "*.json")
+UPLOAD_ROOT = Path("./backend_codes/data/uploads")
+UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
+ALLOWED_VISIBILITY = {"team", "private", "public"}
+
+
+def _normalize_visibility(raw: Optional[str]) -> str:
+    value = (raw or "").strip().lower()
+    if value in ALLOWED_VISIBILITY:
+        return value
+    return "team"
+
+
+def _compute_sha256(file_path: Path, chunk_size: int = 1024 * 1024) -> str:
+    digest = hashlib.sha256()
+    with file_path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(chunk_size), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _ensure_within_upload_root(path: Path) -> Path:
+    resolved = path.resolve()
+    root = UPLOAD_ROOT.resolve()
+    resolved_str = str(resolved)
+    root_str = str(root)
+    if os.name == "nt":
+        resolved_str = resolved_str.lower()
+        root_str = root_str.lower()
+    if not resolved_str.startswith(root_str):
+        raise ValueError("Requested path is outside of the upload root.")
+    return resolved
+
+
+def _resolve_upload_dir(team_id: Optional[str], run_id: Optional[str]) -> Path:
+    if team_id:
+        safe_team = sanitize_identifier(team_id, "team")
+    else:
+        safe_team = "global"
+    base_dir = UPLOAD_ROOT / safe_team
+    if run_id:
+        safe_run = sanitize_identifier(run_id, "session")
+        base_dir = base_dir / safe_run
+    base_dir.mkdir(parents=True, exist_ok=True)
+    return _ensure_within_upload_root(base_dir)
+
+
+def _resolve_storage_path(file_id: str, original_name: str, team_id: Optional[str], run_id: Optional[str]) -> Path:
+    suffix = Path(original_name).suffix
+    storage_name = f"{file_id}{suffix}" if suffix else file_id
+    upload_dir = _resolve_upload_dir(team_id, run_id)
+    return _ensure_within_upload_root(upload_dir / storage_name)
+
+
+def _cleanup_empty_dirs(path: Path):
+    root = UPLOAD_ROOT.resolve()
+    current = path.resolve()
+    while current != root and root in current.parents:
+        try:
+            current.rmdir()
+        except OSError:
+            break
+        current = current.parent
 
 def sanitize_identifier(value: Optional[str], fallback: str = "team") -> str:
     raw = str(value).strip() if value else ""
@@ -160,6 +225,125 @@ def load_default_team_configs() -> List[Dict[str, Any]]:
 
 
 sync_default_configs_from_files()
+
+
+@app.route('/api/uploads', methods=['POST'])
+def upload_file():
+    """Handle file uploads and store metadata."""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'Missing file field in request.'}), 400
+
+        file = request.files['file']
+        if not file or not file.filename:
+            return jsonify({'success': False, 'error': 'No file selected for upload.'}), 400
+
+        form_data = request.form.to_dict()
+        team_id = form_data.get('teamId')
+        run_id = form_data.get('runId')
+        uploader = form_data.get('uploader')
+        display_name = form_data.get('displayName') or file.filename
+        file_id = form_data.get('fileId') or uuid4().hex
+        visibility = _normalize_visibility(form_data.get('visibility'))
+        mime_type = form_data.get('mimeType') or file.mimetype or 'application/octet-stream'
+
+        original_name = file.filename
+        safe_original = secure_filename(original_name) or display_name or file_id
+        storage_path = _resolve_storage_path(file_id, safe_original, team_id, run_id)
+        storage_path.parent.mkdir(parents=True, exist_ok=True)
+        file.save(storage_path)
+
+        size_bytes = storage_path.stat().st_size
+        checksum = _compute_sha256(storage_path)
+
+        record = {
+            'fileId': file_id,
+            'fileName': safe_original,
+            'displayName': display_name,
+            'mimeType': mime_type,
+            'storagePath': str(storage_path),
+            'sizeBytes': size_bytes,
+            'checksum': checksum,
+            'uploader': uploader,
+            'teamId': team_id,
+            'runId': run_id,
+            'visibility': visibility,
+            'extra': {
+                'originalName': original_name,
+                'formData': form_data,
+            },
+        }
+
+        stored = db.register_uploaded_file(record)
+        stored['storageUri'] = stored.get('storagePath')
+        stored['downloadUrl'] = f"/api/uploads/{stored['fileId']}"
+
+        return jsonify({'success': True, 'file': stored}), 201
+
+    except Exception as exc:
+        print(f"⚠️ File upload failed: {exc}")
+        return jsonify({'success': False, 'error': str(exc)}), 500
+
+
+@app.route('/api/uploads/<file_id>', methods=['GET'])
+def download_file(file_id: str):
+    """Serve an uploaded file by id."""
+    try:
+        file_meta = db.get_uploaded_file(file_id)
+        if not file_meta:
+            return jsonify({'success': False, 'error': 'File not found.'}), 404
+
+        try:
+            storage_path = _ensure_within_upload_root(Path(file_meta['storagePath']))
+        except Exception:
+            return jsonify({'success': False, 'error': 'Invalid file path.'}), 400
+
+        if not storage_path.exists():
+            return jsonify({'success': False, 'error': 'File missing on disk.'}), 404
+
+        download = request.args.get('download') == '1'
+        download_name = file_meta.get('displayName') or file_meta.get('fileName') or storage_path.name
+
+        response = send_file(
+            storage_path,
+            mimetype=file_meta.get('mimeType') or 'application/octet-stream',
+            as_attachment=download,
+            download_name=download_name,
+        )
+        response.headers['X-File-Id'] = file_id
+        return response
+
+    except Exception as exc:
+        print(f"⚠️ File download failed: {exc}")
+        return jsonify({'success': False, 'error': str(exc)}), 500
+
+
+@app.route('/api/uploads/<file_id>', methods=['DELETE'])
+def delete_file(file_id: str):
+    """Delete uploaded file metadata and the on-disk artifact."""
+    try:
+        file_meta = db.get_uploaded_file(file_id)
+        if not file_meta:
+            return jsonify({'success': False, 'error': 'File not found.'}), 404
+
+        try:
+            storage_path = _ensure_within_upload_root(Path(file_meta['storagePath']))
+        except Exception:
+            storage_path = None
+
+        if storage_path and storage_path.exists():
+            try:
+                storage_path.unlink()
+                _cleanup_empty_dirs(storage_path.parent)
+            except Exception as remove_exc:
+                print(f"⚠️ Failed to remove file from disk: {remove_exc}")
+
+        db.delete_uploaded_file(file_id)
+        return jsonify({'success': True})
+
+    except Exception as exc:
+        print(f"⚠️ File delete failed: {exc}")
+        return jsonify({'success': False, 'error': str(exc)}), 500
 
 def save_default_team_config(team_id: str, config: dict, original_team_id: Optional[str] = None) -> str:
     """Persist a default team configuration to the SourceFiles directory."""
@@ -538,17 +722,40 @@ def process_input():
             }), 400
             
         user_input = data.get('input', '').strip()
-        print(f"🔍 DEBUG: user_input = '{user_input}'")
-        
+        print(f"?? DEBUG: user_input = '{user_input}'")
+
+        raw_attachments = data.get('attachments') if isinstance(data, dict) else []
+        attachments: List[Dict[str, Any]] = []
+        if isinstance(raw_attachments, list):
+            for item in raw_attachments:
+                if not isinstance(item, dict):
+                    continue
+                file_id = item.get('fileId') or item.get('id')
+                if not file_id:
+                    continue
+                stored = db.get_uploaded_file(str(file_id))
+                if stored:
+                    merged: Dict[str, Any] = {**stored, **item}
+                    merged['fileId'] = stored['fileId']
+                    merged.setdefault('storagePath', stored.get('storagePath'))
+                    merged.setdefault('storageUri', stored.get('storagePath'))
+                    merged.setdefault('downloadUrl', f"/api/uploads/{stored['fileId']}")
+                    attachments.append(merged)
+                else:
+                    attachments.append(dict(item))
+        else:
+            print('?? DEBUG: attachments payload is not a list; ignoring.')
+        print(f'?? DEBUG: attachments = {attachments}')
+
         if not user_input:
-            print("�?ERROR: Input is empty")
+            print("??ERROR: Input is empty")
             return jsonify({
                 'success': False,
                 'error': 'Input is required'
             }), 400
-        
-        # 处理输入并生成输�?
-        result = current_runner.process_input_output(user_input, current_config)
+
+        # ??????????
+        result = current_runner.process_input_output(user_input, current_config, attachments=attachments)
         print(f"🔍 DEBUG: result = '{result}'")
         # 生成处理日志
         nodes = current_config.get('nodes', [])
@@ -577,6 +784,7 @@ def process_input():
             'success': True,
             'input': user_input,
             'output': result,
+            'attachments': attachments,
             'processingLog': processing_log,
             'timestamp': time.time()
         }
@@ -614,6 +822,32 @@ def run_sse():
 
         user_input = request.args.get('input', '').strip()
         print(f"🔍 DEBUG: user_input = '{user_input}'")
+
+        raw_attachments = request.args.get('attachments')
+        attachments: List[Dict[str, Any]] = []
+        if raw_attachments:
+            try:
+                parsed = json.loads(raw_attachments)
+                if isinstance(parsed, list):
+                    for item in parsed:
+                        if not isinstance(item, dict):
+                            continue
+                        file_id = item.get('fileId') or item.get('id')
+                        if not file_id:
+                            continue
+                        stored = db.get_uploaded_file(str(file_id))
+                        if stored:
+                            merged: Dict[str, Any] = {**stored, **item}
+                            merged['fileId'] = stored['fileId']
+                            merged.setdefault('storagePath', stored.get('storagePath'))
+                            merged.setdefault('storageUri', stored.get('storagePath'))
+                            merged.setdefault('downloadUrl', f"/api/uploads/{stored['fileId']}")
+                            attachments.append(merged)
+                        else:
+                            attachments.append(dict(item))
+            except json.JSONDecodeError as exc:
+                print(f"⚠️ Failed to parse attachments for SSE run: {exc}")
+        print(f"🔍 DEBUG: SSE attachments = {attachments}")
         
         if not user_input:
             print("�?ERROR: Input is empty")
@@ -627,7 +861,7 @@ def run_sse():
 
         def worker():
             try:
-                current_runner.process_input_output_streaming(user_input, current_config, emit=emitter)
+                current_runner.process_input_output_streaming(user_input, current_config, emit=emitter, attachments=attachments)
             except Exception as e:
                 try:
                     emitter({

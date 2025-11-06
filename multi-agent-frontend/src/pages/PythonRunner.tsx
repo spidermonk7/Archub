@@ -1,11 +1,26 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Layout, Card, Button, Input, Typography, Space, Select, message, Tag, Descriptions } from 'antd';
-import { ReloadOutlined, ApiOutlined, HomeOutlined } from '@ant-design/icons';
+import { Layout, Card, Button, Input, Typography, Space, Select, message, Tag, Descriptions, Tooltip } from 'antd';
+import {
+  ReloadOutlined,
+  ApiOutlined,
+  HomeOutlined,
+  UploadOutlined,
+  PaperClipOutlined,
+  LoadingOutlined,
+  FileOutlined,
+  FileImageOutlined,
+  FilePdfOutlined,
+  FileTextOutlined,
+  FileZipOutlined,
+  AudioOutlined,
+  VideoCameraOutlined,
+} from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import './PythonRunner.css';
 import RunningNodeCanvas from '../components/RunningNodeCanvas';
 import WorkflowChat, { WorkflowEvent } from '../components/WorkflowChat';
 import MarkdownRenderer from '../components/MarkdownRenderer';
+import { AttachmentItem, UploadedFileMeta } from '../types/uploads';
 
 const { Content } = Layout;
 const { Text } = Typography;
@@ -40,8 +55,110 @@ const PythonRunner: React.FC = () => {
   const [chatEvents, setChatEvents] = useState<WorkflowEvent[]>([]);
   const lastProcessingEventIdRef = useRef<Record<string, string>>({});
   const [finalOutput, setFinalOutput] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const API_BASE_URL = 'http://localhost:5000/api';
+
+  const pickAttachmentIcon = (mime?: string, filename?: string) => {
+    const safeMime = (mime || '').toLowerCase();
+    const safeName = (filename || '').toLowerCase();
+    if (safeMime.startsWith('image/') || /\.(png|jpg|jpeg|gif|bmp|svg)$/.test(safeName)) return <FileImageOutlined />;
+    if (safeMime === 'application/pdf' || safeName.endsWith('.pdf')) return <FilePdfOutlined />;
+    if (safeMime.startsWith('text/') || /\.(txt|md|csv|log)$/.test(safeName)) return <FileTextOutlined />;
+    if (safeMime.startsWith('audio/') || /\.(mp3|wav|aac)$/.test(safeName)) return <AudioOutlined />;
+    if (safeMime.startsWith('video/') || /\.(mp4|mov|avi|mkv)$/.test(safeName)) return <VideoCameraOutlined />;
+    if (safeMime.includes('zip') || /\.(zip|tar|gz|7z)$/.test(safeName)) return <FileZipOutlined />;
+    return <FileOutlined />;
+  };
+
+  const handleOpenFilePicker = () => {
+    if (!currentConfig) {
+      message.warning('请先选择要运行的团队配置。');
+      return;
+    }
+    if (isLiveRunning) {
+      message.warning('运行过程中无法添加文件。');
+      return;
+    }
+    fileInputRef.current?.click();
+  };
+
+  const uploadAttachment = async (file: File, tempId: string) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('displayName', file.name);
+    const teamId = currentConfig?.metadata?.id;
+    if (teamId) formData.append('teamId', teamId);
+    try {
+      const response = await fetch(`${API_BASE_URL}/uploads`, {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await response.json();
+      if (!response.ok || !data?.success) {
+        throw new Error(data?.error || response.statusText);
+      }
+      const uploaded: UploadedFileMeta = data.file;
+      setAttachments(prev =>
+        prev.map(item => item.fileId === tempId ? { ...uploaded, status: 'ready' } : item)
+      );
+      message.success(`文件 ${file.name} 上传成功。`);
+    } catch (error: any) {
+      const errMsg = error?.message || '上传失败';
+      setAttachments(prev =>
+        prev.map(item =>
+          item.fileId === tempId
+            ? { ...item, status: 'error', errorMessage: errMsg }
+            : item
+        )
+      );
+      message.error(`文件 ${file.name} 上传失败: ${errMsg}`);
+    }
+  };
+
+  const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+    const fileList = Array.from(files);
+    fileList.forEach(file => {
+      const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      setAttachments(prev => [
+        ...prev,
+        {
+          fileId: tempId,
+          displayName: file.name,
+          mimeType: file.type,
+          sizeBytes: file.size,
+          status: 'uploading',
+        },
+      ]);
+      uploadAttachment(file, tempId);
+    });
+    event.target.value = '';
+  };
+
+  const handleRemoveAttachment = async (attachment: AttachmentItem) => {
+    if (isLiveRunning) {
+      message.info('运行过程中无法移除文件。');
+      return;
+    }
+    setAttachments(prev => prev.filter(item => item.fileId !== attachment.fileId));
+    if (attachment.status === 'ready' && attachment.fileId && !attachment.fileId.startsWith('temp-')) {
+      try {
+        const resp = await fetch(`${API_BASE_URL}/uploads/${encodeURIComponent(attachment.fileId)}`, {
+          method: 'DELETE',
+        });
+        const data = await resp.json();
+        if (!resp.ok || !data?.success) {
+          throw new Error(data?.error || resp.statusText);
+        }
+      } catch (error: any) {
+        message.error(`删除文件失败: ${attachment.displayName || attachment.fileId}`);
+        setAttachments(prev => [...prev, attachment]);
+      }
+    }
+  };
 
   // 检查API连接状态
   const checkApiConnection = useCallback(async () => {
@@ -96,6 +213,7 @@ const PythonRunner: React.FC = () => {
       
       if (data.success) {
         setCurrentConfig(data.config);
+        setAttachments([]);
         message.success(data.message);
         setFinalOutput(null);
       } else {
@@ -115,24 +233,41 @@ const PythonRunner: React.FC = () => {
       message.warning('请输入内容');
       return;
     }
-    if (!currentConfig) {
-      message.warning('请先加载配置文件');
-      return;
+  if (!currentConfig) {
+    message.warning('请先加载配置文件');
+    return;
+  }
+  if (isLiveRunning) {
+    message.info('已有运行在进行中');
+    return;
+  }
+  const uploadingAttachments = attachments.filter(att => att.status === 'uploading');
+  if (uploadingAttachments.length) {
+    message.warning('文件仍在上传，请稍后再试。');
+    return;
+  }
+  const erroredAttachments = attachments.filter(att => att.status === 'error');
+  if (erroredAttachments.length) {
+    message.warning('请移除上传失败的文件后再试。');
+    return;
+  }
+  const readyAttachments = attachments.filter(att => att.status === 'ready');
+  try {
+    setIsLiveRunning(true);
+    setFinalOutput(null);
+    // 关闭已有连接
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
     }
-    if (isLiveRunning) {
-      message.info('已有运行在进行中');
-      return;
+    const params = new URLSearchParams();
+    params.set('input', userInput.trim());
+    if (readyAttachments.length) {
+      const payload = readyAttachments.map(({ status, errorMessage, ...rest }) => rest);
+      params.set('attachments', JSON.stringify(payload));
     }
-    try {
-      setIsLiveRunning(true);
-      setFinalOutput(null);
-      // 关闭已有连接
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
-      }
-      const encoded = encodeURIComponent(userInput.trim());
-      const es = new EventSource(`${API_BASE_URL.replace('/api','')}/api/run-sse?input=${encoded}`);
+    const baseUrl = API_BASE_URL.replace('/api', '');
+    const es = new EventSource(`${baseUrl}/api/run-sse?${params.toString()}`);
       eventSourceRef.current = es;
 
       const getNodeName = (id: string): string => {
@@ -234,15 +369,16 @@ const PythonRunner: React.FC = () => {
         try {
           const e = JSON.parse(ev.data);
           const src = e?.edge?.source;
-          const tgt = e?.edge?.target;
-          const preview = e?.messages?.[0]?.preview || '';
-          if (src) activateNode(src);
-          if (tgt) activateNode(tgt);
-          const a = getNodeName(src);
-          const b = getNodeName(tgt);
-          const id = `${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
-          const content = e?.messages?.[0]?.content || preview;
-          const edgeId = e?.edge?.id || `${src}__to__${tgt}`;
+        const tgt = e?.edge?.target;
+        const preview = e?.messages?.[0]?.preview || '';
+        if (src) activateNode(src);
+        if (tgt) activateNode(tgt);
+        const a = getNodeName(src);
+        const b = getNodeName(tgt);
+        const id = `${Date.now()}_${Math.random().toString(36).slice(2,8)}`;
+        const content = e?.messages?.[0]?.content || preview;
+        const attachmentsMeta: UploadedFileMeta[] = e?.messages?.[0]?.attachments || [];
+        const edgeId = e?.edge?.id || `${src}__to__${tgt}`;
           // activate edge animation briefly
           setActiveEdges(prev => {
             const ns = new Set(prev);
@@ -262,7 +398,16 @@ const PythonRunner: React.FC = () => {
             const base = lastId ? prev.filter(ev => ev.id !== lastId) : prev;
             if (lastId) lastProcessingEventIdRef.current[src] = '';
             return [
-              { id, type: 'message', ts: Date.now(), nodeId: src, nodeName: a, targetName: b, content },
+              {
+                id,
+                type: 'message',
+                ts: Date.now(),
+                nodeId: src,
+                nodeName: a,
+                targetName: b,
+                content,
+                attachments: attachmentsMeta,
+              },
               ...base,
             ];
           });
@@ -316,7 +461,7 @@ const PythonRunner: React.FC = () => {
       setIsLiveRunning(false);
       message.error('无法启动流式运行');
     }
-  }, [API_BASE_URL, currentConfig, isLiveRunning, userInput]);
+  }, [API_BASE_URL, attachments, currentConfig, isLiveRunning, userInput]);
 
   // 清理 EventSource on unmount
   useEffect(() => {
@@ -344,11 +489,12 @@ const PythonRunner: React.FC = () => {
       setActiveNodes(new Set());
       setNodeStates({});
       setUserInput('');
+      setAttachments([]);
       message.success('会话已重置');
     } catch (error) {
       message.error('重置会话时发生错误');
     }
-  }, []);
+  }, [API_BASE_URL]);
 
   // 检查预选的配置
   const checkPreselectedConfig = useCallback(async () => {
@@ -539,6 +685,58 @@ const PythonRunner: React.FC = () => {
                   rows={5}
                   disabled={!currentConfig || isLiveRunning}
                 />
+                <div className="input-attachments">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    style={{ display: 'none' }}
+                    multiple
+                    onChange={handleFileInputChange}
+                  />
+                  <Space size="small" wrap>
+                    <Button
+                      icon={<UploadOutlined />}
+                      onClick={handleOpenFilePicker}
+                      disabled={!currentConfig || isLiveRunning}
+                    >
+                      上传文件
+                    </Button>
+                    <Space size={4}>
+                      <PaperClipOutlined />
+                      <Text type="secondary">支持多种文件格式，供 Agent 使用</Text>
+                    </Space>
+                  </Space>
+                  {attachments.length > 0 && (
+                    <div className="attachment-preview">
+                      {attachments.map((att) => {
+                        const label = att.displayName || att.fileName || att.fileId;
+                        const iconNode =
+                          att.status === 'uploading'
+                            ? <LoadingOutlined spin />
+                            : pickAttachmentIcon(att.mimeType, label);
+                        const color =
+                          att.status === 'error' ? 'error' :
+                          att.status === 'uploading' ? 'processing' : undefined;
+                        return (
+                          <Tooltip key={att.fileId} title={att.errorMessage || label}>
+                            <Tag
+                              color={color}
+                              icon={iconNode}
+                              closable={!isLiveRunning}
+                              onClose={(e) => {
+                                e.preventDefault();
+                                handleRemoveAttachment(att);
+                              }}
+                            >
+                              {label}
+                              {att.status === 'uploading' ? ' (上传中)' : att.status === 'error' ? ' (失败)' : ''}
+                            </Tag>
+                          </Tooltip>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
                 <Button
                   onClick={startLiveRun}
                   disabled={!currentConfig || !userInput.trim() || isLiveRunning}

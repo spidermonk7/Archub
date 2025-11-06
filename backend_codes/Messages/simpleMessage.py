@@ -33,7 +33,8 @@ class SimpleMessage(BaseMessage):
             "type": self.type,
             "content": self.content,
             "timetag": self.timetag,
-            "maker": self.maker
+            "maker": self.maker,
+            "attachments": self.attachments,
         }
     
 
@@ -41,12 +42,19 @@ class SimpleMessageCreator(BaseMsgCreator):
     def __init__(self):
         super().__init__()  
 
-    def create_message(self, content: str, maker: str | None = None, target_agent = None) -> SimpleMessage:
+    def create_message(
+        self,
+        content: str,
+        maker: str | None = None,
+        target_agent = None,
+        attachments: list | None = None,
+    ) -> SimpleMessage:
         return SimpleMessage(
             content=content,
             timetag=_now_tag(),
             maker=maker,
-            target_agent=target_agent
+            target_agent=target_agent,
+            attachments=attachments,
         )
     
 

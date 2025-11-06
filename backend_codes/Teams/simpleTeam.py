@@ -2,7 +2,7 @@ import sys
 import os
 from collections import defaultdict
 
-from typing import List
+from typing import Any, Dict, List, Optional
 
 from networkx import config, nodes
 
@@ -37,11 +37,13 @@ RESET = "\033[0m"
 
 # An Agent Team for question answering
 class SimpleTeam(BaseTeam):
-    def __init__(self, 
-        goal = "Empty Goal", 
-        config = None,
+    def __init__(
+        self,
+        goal: str = "Empty Goal",
+        config: Optional[Dict[str, Any]] = None,
         emit=None,
         run_id: str | None = None,
+        input_attachments: Optional[List[Dict[str, Any]]] = None,
         ):
         super().__init__()
 
@@ -53,6 +55,7 @@ class SimpleTeam(BaseTeam):
         self.goal = goal
         self.emit = emit or (lambda _e: None)
         self.run_id = run_id
+        self.initial_attachments: List[Dict[str, Any]] = list(input_attachments or [])
    
         self.nodes = {}
         self.edges = {}
@@ -105,7 +108,8 @@ class SimpleTeam(BaseTeam):
                 initial_message = SimpleMessageCreator().create_message(
                     content = self.goal,
                     maker = "System",
-                    target_agent = None
+                    target_agent = None,
+                    attachments=self.initial_attachments if self.initial_attachments else None,
                 )
                 node.receive([initial_message])
 

@@ -79,6 +79,7 @@ class BaseEdge(ABC):
                     'timetag': getattr(m, 'timetag', None),
                     'content': getattr(m, 'content', ''),
                     'preview': (getattr(m, 'content', '') or '')[:120],
+                    'attachments': getattr(m, 'attachments', []),
                 } for m in flattened_messages],
                 'meta': {
                     'count': len(flattened_messages),

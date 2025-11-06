@@ -198,6 +198,46 @@
   font-size: inherit;
 }
 
+.attachment-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
+.attachment-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  background: var(--surface-tertiary);
+  border: 1px solid var(--border-primary);
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: var(--transition-fast);
+}
+
+.attachment-pill:hover {
+  background: var(--surface-hover);
+  color: var(--accent-primary);
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.attachment-icon {
+  display: flex;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.attachment-name {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Inline Code */
 .bubble .content code {
   background: rgba(59, 130, 246, 0.15);

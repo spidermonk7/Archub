@@ -1,6 +1,7 @@
 import sys
 import os
 import re
+from typing import Any, Dict, List
 from camel.agents import ChatAgent
 # 把项目根目录加入搜索路径
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
@@ -103,6 +104,11 @@ class StageManagerNode(BaseNode):
             recieved_content = "This is the first round of the task, no recieved message yet."
         else:
             recieved_content = '\n'.join([self.parse_received(recieved) for recieved in self.received])
+        attachments_to_forward: List[Dict[str, Any]] = []
+        for recieved in self.received:
+            attachments = getattr(recieved, 'attachments', []) if hasattr(recieved, 'attachments') else []
+            if attachments:
+                attachments_to_forward.extend(attachments)
         
         input_msg = load_prompt_from_template(
             template_path=f"Nodes/stageNodes/templates/{self.version}/stage_manager_retrieve.md", 
@@ -154,6 +160,7 @@ class StageManagerNode(BaseNode):
             content = str(parsed_decision['next_step']) + "\n" + str(parsed_decision['detailed_message']),
             maker = self.name,
             target_agent = str(parsed_decision['next_agent']).lower(),
+            attachments = attachments_to_forward if attachments_to_forward else None,
         )
 
         self.history.append(f"[{manager_decision_msg.timetag}] You send a message to agent '{manager_decision_msg.target_agent}' with detailed message: \n{manager_decision_msg.content}.\n")
@@ -174,10 +181,32 @@ class StageManagerNode(BaseNode):
             input_data = [input_data]
         self.received.extend(input_data)
 
+    def _format_attachments(self, attachments: List[Dict[str, Any]]) -> str:
+        if not attachments:
+            return ""
+        lines = []
+        for idx, attachment in enumerate(attachments, 1):
+            name = attachment.get('displayName') or attachment.get('fileName') or f'Attachment {idx}'
+            file_id = attachment.get('fileId') or attachment.get('id') or 'unknown-id'
+            mime = attachment.get('mimeType') or 'application/octet-stream'
+            size = attachment.get('sizeBytes') or attachment.get('size')
+            size_text = f"{size} bytes" if size else "unknown size"
+            path_hint = attachment.get('storagePath') or attachment.get('storageUri') or attachment.get('path')
+            lines.append(f"{idx}. {name} (id={file_id}, mime={mime}, size={size_text})")
+            if path_hint:
+                lines.append(f"   path: {path_hint}")
+        return "\n".join(lines)
+
     def parse_received(self, data): 
-        self.history.append(f"[{data.timetag}] You received a message from '{data.maker}' with content: \n{data.content}.\n")
+        attachments = getattr(data, 'attachments', []) if hasattr(data, 'attachments') else []
+        attachment_note = ""
+        if attachments:
+            attachment_note = "\nAttached files:\n" + self._format_attachments(attachments)
+        self.history.append(
+            f"[{data.timetag}] You received a message from '{data.maker}' with content: \n{data.content}.{attachment_note}\n"
+        )
         
-        data = load_prompt_from_template(
+        rendered = load_prompt_from_template(
             template_path=f"Nodes/stageNodes/templates/{self.version}/stage_manager_parse_received.md", 
             params={
                 'source': data.maker,
@@ -185,8 +214,10 @@ class StageManagerNode(BaseNode):
                 'time': data.timetag,
             }
         )
+        if attachments:
+            rendered += "\n\nAttached files:\n" + self._format_attachments(attachments)
        
-        return data
+        return rendered
     
 
     def show(self):

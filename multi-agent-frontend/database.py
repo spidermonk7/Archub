@@ -54,7 +54,28 @@ class TeamDatabase:
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_teams_name ON teams(name)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_teams_created_at ON teams(created_at)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_teams_origin ON teams(origin)')
-            
+
+            # 上传文件表
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS uploaded_files (
+                    file_id TEXT PRIMARY KEY,
+                    file_name TEXT NOT NULL,
+                    display_name TEXT,
+                    mime_type TEXT,
+                    storage_path TEXT NOT NULL,
+                    size_bytes INTEGER DEFAULT 0,
+                    checksum TEXT,
+                    uploader TEXT,
+                    team_id TEXT,
+                    run_id TEXT,
+                    visibility TEXT DEFAULT 'team',
+                    extra_json TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_uploaded_files_team ON uploaded_files(team_id)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_uploaded_files_run ON uploaded_files(run_id)')
+
             conn.commit()
             print(f"✅ 数据库初始化完成: {self.db_path.resolve()}")
     
@@ -353,6 +374,149 @@ class TeamDatabase:
                 'totalEdges': 0,
                 'databaseSize': 0
             }
+
+    # -- Uploads ---------------------------------------------------------
+    def register_uploaded_file(self, file_record: Dict[str, Any]) -> Dict[str, Any]:
+        """Persist uploaded file metadata."""
+        normalized = {
+            'file_id': file_record.get('fileId'),
+            'file_name': file_record.get('fileName') or file_record.get('originalName') or file_record.get('displayName') or '',
+            'display_name': file_record.get('displayName'),
+            'mime_type': file_record.get('mimeType'),
+            'storage_path': file_record.get('storagePath'),
+            'size_bytes': file_record.get('sizeBytes') or file_record.get('size') or 0,
+            'checksum': file_record.get('checksum'),
+            'uploader': file_record.get('uploader'),
+            'team_id': file_record.get('teamId'),
+            'run_id': file_record.get('runId'),
+            'visibility': file_record.get('visibility', 'team'),
+            'extra_json': json.dumps(file_record.get('extra') or {}, ensure_ascii=False),
+        }
+        if not normalized['file_id']:
+            raise ValueError('fileId is required to register uploaded file metadata.')
+        if not normalized['storage_path']:
+            raise ValueError('storagePath is required to register uploaded file metadata.')
+        if not normalized['file_name']:
+            normalized['file_name'] = normalized['display_name'] or normalized['file_id']
+
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                '''
+                INSERT OR REPLACE INTO uploaded_files (
+                    file_id, file_name, display_name, mime_type, storage_path,
+                    size_bytes, checksum, uploader, team_id, run_id,
+                    visibility, extra_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''',
+                (
+                    normalized['file_id'],
+                    normalized['file_name'],
+                    normalized['display_name'],
+                    normalized['mime_type'],
+                    normalized['storage_path'],
+                    normalized['size_bytes'],
+                    normalized['checksum'],
+                    normalized['uploader'],
+                    normalized['team_id'],
+                    normalized['run_id'],
+                    normalized['visibility'],
+                    normalized['extra_json'],
+                )
+            )
+            conn.commit()
+        return self.get_uploaded_file(normalized['file_id']) or {}
+
+    def get_uploaded_file(self, file_id: str) -> Optional[Dict[str, Any]]:
+        """Fetch uploaded file metadata by id."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                '''
+                SELECT file_id, file_name, display_name, mime_type, storage_path,
+                       size_bytes, checksum, uploader, team_id, run_id,
+                       visibility, extra_json, created_at
+                FROM uploaded_files
+                WHERE file_id = ?
+                ''',
+                (file_id,)
+            )
+            row = cursor.fetchone()
+
+        if not row:
+            return None
+
+        extra = {}
+        if row[11]:
+            try:
+                extra = json.loads(row[11])
+            except json.JSONDecodeError:
+                extra = {}
+
+        return {
+            'fileId': row[0],
+            'fileName': row[1],
+            'displayName': row[2],
+            'mimeType': row[3],
+            'storagePath': row[4],
+            'sizeBytes': row[5],
+            'checksum': row[6],
+            'uploader': row[7],
+            'teamId': row[8],
+            'runId': row[9],
+            'visibility': row[10],
+            'extra': extra,
+            'createdAt': row[12],
+        }
+
+    def list_uploaded_files(
+        self,
+        *,
+        team_id: Optional[str] = None,
+        run_id: Optional[str] = None,
+        uploader: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """List uploaded files filtered by team/run/uploader."""
+        conditions = []
+        params: List[Any] = []
+        if team_id:
+            conditions.append('team_id = ?')
+            params.append(team_id)
+        if run_id:
+            conditions.append('run_id = ?')
+            params.append(run_id)
+        if uploader:
+            conditions.append('uploader = ?')
+            params.append(uploader)
+
+        where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ''
+
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                f'''
+                SELECT file_id
+                FROM uploaded_files
+                {where_clause}
+                ORDER BY created_at DESC
+                ''',
+                tuple(params)
+            )
+            ids = [row[0] for row in cursor.fetchall()]
+
+        return [
+            file_meta for file_id in ids
+            if (file_meta := self.get_uploaded_file(file_id)) is not None
+        ]
+
+    def delete_uploaded_file(self, file_id: str) -> bool:
+        """Remove uploaded file metadata."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM uploaded_files WHERE file_id = ?', (file_id,))
+            affected = cursor.rowcount
+            conn.commit()
+        return affected > 0
 
 # 测试代码
 if __name__ == "__main__":

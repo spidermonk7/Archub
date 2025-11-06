@@ -1,12 +1,14 @@
 import sys
 import os
 import re
+from typing import Any, Dict, List, Tuple
 
 # 把项目根目录加入搜索路径
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from Messages.simpleMessage import SimpleMessage, SimpleMessageCreator
 from Nodes.base_node import BaseNode
 from camel.agents import ChatAgent
+from artifact_manager import register_artifact
 
 
 
@@ -36,6 +38,8 @@ class AgentNode(BaseNode):
         )
         self.resume_info = agent_resume
 
+    ARTIFACT_PATTERN = re.compile(r"\[\[artifact:(?P<path>[^|\]]+)(?:\|(?P<name>[^|\]]*))?(?:\|(?P<mime>[^|\]]*))?\]\]")
+
 
     def parse_received(self, data: SimpleMessage): 
         if isinstance(data, SimpleMessage):
@@ -44,6 +48,75 @@ class AgentNode(BaseNode):
             combined_content = "\n".join([msg.to_str() for msg in data if isinstance(msg, SimpleMessage)])
             return combined_content
     
+    @staticmethod
+    def _format_bytes(size: Any) -> str:
+        try:
+            value = float(size)
+        except (TypeError, ValueError):
+            return "unknown size"
+        units = ["B", "KB", "MB", "GB", "TB"]
+        index = 0
+        while value >= 1024 and index < len(units) - 1:
+            value /= 1024
+            index += 1
+        if index == 0:
+            return f"{int(value)} {units[index]}"
+        return f"{value:.1f} {units[index]}"
+
+    def _format_attachments_for_prompt(self, attachments: List[Dict[str, Any]]) -> str:
+        if not attachments:
+            return ""
+        lines = ["[Attached Files]"]
+        for idx, attachment in enumerate(attachments, 1):
+            name = attachment.get("displayName") or attachment.get("fileName") or f"Attachment {idx}"
+            file_id = attachment.get("fileId") or attachment.get("id") or "unknown-id"
+            mime = attachment.get("mimeType") or "application/octet-stream"
+            size_text = self._format_bytes(attachment.get("sizeBytes") or attachment.get("size"))
+            path_hint = attachment.get("storagePath") or attachment.get("storageUri") or attachment.get("path")
+            download_hint = attachment.get("downloadUrl")
+            lines.append(f"{idx}. {name} (id={file_id}, mime={mime}, size={size_text})")
+            if path_hint:
+                lines.append(f"   path: {path_hint}")
+            if download_hint:
+                lines.append(f"   url: {download_hint}")
+        lines.append("Use the provided file identifiers or paths to access the files when needed.")
+        return "\n".join(lines)
+
+    def _compose_prompt(self, base_text: str, attachments: List[Dict[str, Any]]) -> str:
+        attachment_section = self._format_attachments_for_prompt(attachments)
+        if not attachment_section:
+            return base_text
+        return f"{base_text}\n\n{attachment_section}\n"
+
+    def _extract_artifacts_from_output(self, text: Any) -> Tuple[str, List[Dict[str, Any]]]:
+        """Scan processed text for artifact markers and register files."""
+        attachments: List[Dict[str, Any]] = []
+        if not isinstance(text, str):
+            return "", attachments
+
+        def _replacement(match: re.Match) -> str:
+            raw_path = match.group("path").strip()
+            display = (match.group("name") or "").strip() or os.path.basename(raw_path)
+            mime = (match.group("mime") or "").strip() or None
+            try:
+                stored = register_artifact(
+                    raw_path,
+                    display_name=display,
+                    mime_type=mime,
+                    uploader=self.name,
+                    team_id=self.team_id,
+                    run_id=self.run_id,
+                )
+                attachments.append(stored)
+                label = stored.get("displayName") or stored.get("fileName") or display
+                return f"[生成文件: {label}]"
+            except Exception as exc:
+                print(f"⚠️ Failed to register artifact '{raw_path}': {exc}")
+                return f"[附件注册失败: {raw_path}]"
+
+        updated_text = self.ARTIFACT_PATTERN.sub(_replacement, text)
+        return updated_text, attachments
+
 
     def receive(self, input_data: SimpleMessage):
         """Receive input data or messages."""
@@ -68,15 +141,24 @@ class AgentNode(BaseNode):
         except Exception:
             pass
 
-        for data in self.received:
-            data = self.parse_received(data)
+        for message in self.received:
+            attachments = getattr(message, 'attachments', []) if hasattr(message, 'attachments') else []
+            data = self.parse_received(message)
+            payload = self._compose_prompt(data, attachments)
             try:
-                print(f"[ATTENTION!]Node {self.type}-{self.name} with model {self.model_name} processing data: \n{data}")
-                processed_data = self.agent.step(data).msgs[0].content
+                print(f"[ATTENTION!]Node {self.type}-{self.name} with model {self.model_name} processing data: \n{payload}")
+                processed_data = self.agent.step(payload).msgs[0].content
             except Exception as e:
                 print(f"Node {self.type}-{self.name} with model {self.model_name} processing error: {e}")
                 processed_data = None
-            processed_data = SimpleMessageCreator().create_message(content=self.parse_processed(processed_data), maker=self.name, target_agent='stage_manager')
+            processed_text = self.parse_processed(processed_data)
+            processed_text, generated_attachments = self._extract_artifacts_from_output(processed_text)
+            processed_data = SimpleMessageCreator().create_message(
+                content=processed_text,
+                maker=self.name,
+                target_agent='stage_manager',
+                attachments=generated_attachments if generated_attachments else None,
+            )
             self.processed.append(processed_data)
             print(f"[SUCCESS!]Node {self.type}-{self.name} with model {self.model_name} finished processing data.")
             print(f"Processed data: \n{processed_data.content}")
@@ -93,6 +175,7 @@ class AgentNode(BaseNode):
                     'target': getattr(m, 'target_agent', None),
                     'timetag': getattr(m, 'timetag', None),
                     'preview': (getattr(m, 'content', '') or '')[:120],
+                    'attachments': getattr(m, 'attachments', []),
                 } for m in self.processed[-len(self.received):] if self.received],
                 'meta': {'producedCount': len(self.processed)},
             })

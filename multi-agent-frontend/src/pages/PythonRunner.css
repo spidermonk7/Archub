@@ -252,6 +252,26 @@
   border-radius: 12px;
 }
 
+.input-attachments {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.input-attachments .ant-space:last-child {
+  color: rgba(148, 163, 184, 0.7);
+}
+
+.attachment-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.attachment-preview .ant-tag {
+  margin-inline-end: 0;
+}
+
 @media (max-width: 1100px) {
   .runner-layout {
     flex-direction: column;

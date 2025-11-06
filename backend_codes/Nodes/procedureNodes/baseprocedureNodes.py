@@ -49,6 +49,7 @@ class BaseProcedureNode(BaseNode):
                     'target': getattr(m, 'target_agent', None),
                     'timetag': getattr(m, 'timetag', None),
                     'preview': (getattr(m, 'content', '') or '')[:120],
+                    'attachments': getattr(m, 'attachments', []),
                 } for m in self.processed],
                 'meta': {'producedCount': len(self.processed)},
             })
