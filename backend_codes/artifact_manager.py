@@ -2,6 +2,7 @@ import contextlib
 import hashlib
 import io
 import mimetypes
+import os
 import shutil
 import sys
 import uuid
@@ -19,6 +20,8 @@ from database import TeamDatabase  # type: ignore
 
 UPLOAD_ROOT = (BACKEND_DIR / "data" / "uploads").resolve()
 UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
+
+PUBLIC_API_BASE_URL = os.environ.get("PUBLIC_API_BASE_URL", "http://localhost:5000").rstrip("/")
 
 DB_PATH = (FRONTEND_DIR / "teams.db").resolve()
 with contextlib.redirect_stdout(io.StringIO()):
@@ -39,6 +42,10 @@ def _sanitize_identifier(value: Optional[str], fallback: str) -> str:
     raw = str(value).strip() if value else ""
     cleaned = re.sub(r"[^a-zA-Z0-9_-]+", "_", raw)
     return cleaned or fallback
+
+
+def _build_public_url(file_id: str) -> str:
+    return f"{PUBLIC_API_BASE_URL}/api/uploads/{file_id}"
 
 
 def register_artifact(
@@ -96,4 +103,5 @@ def register_artifact(
     stored = _db.register_uploaded_file(record)
     stored["storageUri"] = stored.get("storagePath")
     stored["downloadUrl"] = f"/api/uploads/{stored['fileId']}"
+    stored["publicUrl"] = _build_public_url(stored["fileId"])
     return stored

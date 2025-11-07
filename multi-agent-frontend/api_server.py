@@ -43,6 +43,7 @@ DEFAULT_CONFIG_PATTERNS = ("*.yaml", "*.yml", "*.json")
 UPLOAD_ROOT = Path("./backend_codes/data/uploads")
 UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
 ALLOWED_VISIBILITY = {"team", "private", "public"}
+PUBLIC_API_BASE_URL = os.environ.get("PUBLIC_API_BASE_URL", "http://localhost:5000").rstrip("/")
 
 
 def _normalize_visibility(raw: Optional[str]) -> str:
@@ -102,6 +103,17 @@ def _cleanup_empty_dirs(path: Path):
         except OSError:
             break
         current = current.parent
+
+
+def _build_public_url(file_id: str) -> str:
+    base = PUBLIC_API_BASE_URL
+    try:
+        host_url = request.host_url  # type: ignore[attr-defined]
+        if host_url:
+            base = host_url.rstrip("/")
+    except Exception:
+        pass
+    return f"{base}/api/uploads/{file_id}"
 
 def sanitize_identifier(value: Optional[str], fallback: str = "team") -> str:
     raw = str(value).strip() if value else ""
@@ -277,6 +289,7 @@ def upload_file():
         stored = db.register_uploaded_file(record)
         stored['storageUri'] = stored.get('storagePath')
         stored['downloadUrl'] = f"/api/uploads/{stored['fileId']}"
+        stored['publicUrl'] = _build_public_url(stored['fileId'])
 
         return jsonify({'success': True, 'file': stored}), 201
 
@@ -740,6 +753,7 @@ def process_input():
                     merged.setdefault('storagePath', stored.get('storagePath'))
                     merged.setdefault('storageUri', stored.get('storagePath'))
                     merged.setdefault('downloadUrl', f"/api/uploads/{stored['fileId']}")
+                    merged.setdefault('publicUrl', _build_public_url(stored['fileId']))
                     attachments.append(merged)
                 else:
                     attachments.append(dict(item))
@@ -842,6 +856,7 @@ def run_sse():
                             merged.setdefault('storagePath', stored.get('storagePath'))
                             merged.setdefault('storageUri', stored.get('storagePath'))
                             merged.setdefault('downloadUrl', f"/api/uploads/{stored['fileId']}")
+                            merged.setdefault('publicUrl', _build_public_url(stored['fileId']))
                             attachments.append(merged)
                         else:
                             attachments.append(dict(item))

@@ -198,6 +198,54 @@
   font-size: inherit;
 }
 
+.attachment-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  width: 100%;
+}
+
+.attachment-card {
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md, 0.75rem);
+  padding: 0.4rem;
+  background: var(--surface-tertiary);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.attachment-image-link {
+  display: block;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.attachment-card.image img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  display: block;
+  border-radius: var(--radius-sm);
+}
+
+.attachment-card figcaption {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.attachment-size {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
 .attachment-list {
   display: flex;
   flex-wrap: wrap;
@@ -217,6 +265,18 @@
   color: var(--text-primary);
   text-decoration: none;
   transition: var(--transition-fast);
+}
+
+.attachment-pill--disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+  border-style: dashed;
+}
+
+.attachment-pill--disabled:hover {
+  background: var(--surface-tertiary);
+  color: var(--text-primary);
+  border-color: var(--border-primary);
 }
 
 .attachment-pill:hover {

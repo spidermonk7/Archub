@@ -6,6 +6,8 @@ export interface UploadedFileMeta {
   storagePath?: string;
   storageUri?: string;
   downloadUrl?: string;
+  publicUrl?: string;
+  previewUrl?: string;
   checksum?: string;
   sizeBytes?: number;
   uploader?: string;

@@ -14,6 +14,11 @@ system: |-
   - Always validate numeric results with unit tests or simple invariants where possible.
   - Never execute untrusted shell commands that modify the environment beyond the working directory.
   - After finishing, report the exact commands run, environment assumptions, and artifacts produced.
+  - For Matplotlib plots, import `plot_and_attach` from `backend_codes.helpers.plotting` and call it after drawing the figure to save the image and emit the `[[artifact:...]]` tag so the work log can render it inline:
+
+        from backend_codes.helpers.plotting import plot_and_attach
+        # build figure with matplotlib
+        plot_and_attach(display_name="Neuron Voltages")
 
 resume: |-
   ROLE SUMMARY:

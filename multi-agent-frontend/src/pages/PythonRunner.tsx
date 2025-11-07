@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Layout, Card, Button, Input, Typography, Space, Select, message, Tag, Descriptions, Tooltip } from 'antd';
 import {
   ReloadOutlined,
@@ -59,6 +59,13 @@ const PythonRunner: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const API_BASE_URL = 'http://localhost:5000/api';
+  const apiOrigin = useMemo(() => {
+    try {
+      return new URL(API_BASE_URL).origin;
+    } catch {
+      return '';
+    }
+  }, [API_BASE_URL]);
 
   const pickAttachmentIcon = (mime?: string, filename?: string) => {
     const safeMime = (mime || '').toLowerCase();
@@ -750,7 +757,7 @@ const PythonRunner: React.FC = () => {
             </Card>
 
             <Card title="工作流日志" className="live-logs-section">
-              <WorkflowChat events={chatEvents} />
+              <WorkflowChat events={chatEvents} assetBaseUrl={apiOrigin} />
             </Card>
           </aside>
         </div>
