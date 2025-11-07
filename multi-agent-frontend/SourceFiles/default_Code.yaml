@@ -1,0 +1,72 @@
+edges:
+- config:
+    condition: ''
+    description: ''
+  delay: 0
+  id: edge_1762481396997
+  source: input-node
+  target: node_1762481391317
+  type: hard
+- config:
+    condition: ''
+    description: ''
+  delay: 1
+  id: edge_1762481401366
+  source: node_1762481391317
+  target: output-node
+  type: hard
+metadata:
+  compiledAt: '2025-11-07T02:10:06.767Z'
+  description: An intelligent workflow featuring 0 nodes and 0 connections.
+  id: default_Code
+  name: Code
+  version: '1.0'
+  originalId: Code
+nodes:
+- config:
+    inputType: text
+    placeholder: Please enter your request...
+    validation: ''
+  description: Accepts user input as the entry node
+  id: input-node
+  name: User Input
+  position:
+    x: 100
+    y: 200
+  type: input
+- config:
+    outputFormat: text
+    successMessage: Processing complete
+    template: ''
+  description: Returns results to the user as the exit node
+  id: output-node
+  name: User Output
+  position:
+    x: 600
+    y: 200
+  type: output
+- config:
+    inputDataType: text
+    llmModel: gpt-4o
+    outputDataType: text
+    outputSchema: markdown
+    systemPrompt: 'You are Coding Engineer, a pragmatic software developer.
+
+      - Design code solutions with attention to readability, modularity, and best
+      practices.
+
+      - Use the code_executor tool to run snippets, verify behavior, and share runtime
+      output.
+
+      - When returning code, include brief explanations and highlight potential edge
+      cases or next improvements.'
+    tools:
+    - code_executor
+  description: Hands-on software engineer that drafts, tests, and refines code solutions
+    with executable feedback.
+  id: node_1762481391317
+  name: Coding Engineer
+  position:
+    x: 315.02618001686443
+    y: -55.073631284678235
+  type: agent

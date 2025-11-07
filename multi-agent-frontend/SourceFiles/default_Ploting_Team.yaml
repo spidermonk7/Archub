@@ -1,0 +1,95 @@
+edges:
+- config:
+    condition: ''
+    description: ''
+  delay: 0
+  id: edge_1762481614166
+  source: input-node
+  target: node_1762481607967
+  type: hard
+- config:
+    condition: ''
+    description: ''
+  delay: 1
+  id: edge_1762481620164
+  source: node_1762481607967
+  target: node_1762481578368
+  type: hard
+- config:
+    condition: ''
+    description: ''
+  delay: 2
+  id: edge_1762481626619
+  source: node_1762481578368
+  target: output-node
+  type: hard
+metadata:
+  compiledAt: '2025-11-07T02:14:13.435Z'
+  description: This is  an agent team for writing code.
+  id: default_Ploting_Team
+  name: Ploting Team
+  version: '1.0'
+  originalId: Ploting_Team
+nodes:
+- config:
+    inputType: text
+    placeholder: Please enter your request...
+    validation: ''
+  description: Accepts user input as the entry node
+  id: input-node
+  name: User Input
+  position:
+    x: 100
+    y: 200
+  type: input
+- config:
+    outputFormat: text
+    successMessage: Processing complete
+    template: ''
+  description: Returns results to the user as the exit node
+  id: output-node
+  name: User Output
+  position:
+    x: 617.4809989142236
+    y: 293.485342019544
+  type: output
+- config:
+    inputDataType: text
+    llmModel: gpt-4o
+    outputDataType: text
+    outputSchema: markdown
+    systemPrompt: 'You are Coding Engineer, a pragmatic software developer.
+
+      - Design code solutions with attention to readability, modularity, and best
+      practices.
+
+      - Use the code_executor tool to run snippets, verify behavior, and share runtime
+      output.
+
+      - When returning code, include brief explanations and highlight potential edge
+      cases or next improvements.'
+    tools:
+    - code_executor
+  description: Hands-on software engineer that drafts, tests, and refines code solutions
+    with executable feedback.
+  id: node_1762481578368
+  name: Coding Engineer
+  position:
+    x: 716.535711678873
+    y: -79.24346374310745
+  type: agent
+- config:
+    inputDataType: text
+    llmModel: gpt-4o-mini
+    outputDataType: text
+    outputSchema: free_text
+    systemPrompt: 'You are a helpful assistant. You are excellent in writing python
+      code. '
+    tools: []
+  description: 这是一个智能体节点，用于处理用户输入并生成响应
+  id: node_1762481607967
+  name: CodeWriter
+  position:
+    x: 404.28721354332004
+    y: -36.017515105557834
+  type: agent
